@@ -1,0 +1,10 @@
+[run]
+branch = True
+source = iotoolz
+omit =
+    **/*_test.py
+    **/__init__.py
+
+[report]
+fail_under = 50
+show_missing = True
