@@ -1,8 +1,8 @@
-Welcome to e2fyi.utils's documentation!
+Welcome to iotoolz's documentation!
 ==========================================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
    :caption: Contents:
 
 .. mdinclude:: ../README.md
