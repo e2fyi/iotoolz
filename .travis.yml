@@ -15,7 +15,7 @@ branches:
 install:
   - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
   - source $HOME/.poetry/env
-  - poetry install --extras all
+  - poetry install
 script:
   - make coveralls
 deploy:
@@ -26,8 +26,3 @@ deploy:
   on:
     tags: true
     branch: master
-  # provider: pypi
-  # user: __token__
-  # skip_existing: true
-  # password:
-  #   secure: haF9Jqz/dyH43XekxPyaKV3FU90XjPICloXENsr+dUZQ2p9hIvB9soLcJPaDkLq53wgqtnppxVa1LZ5bJ+5sKOYwCaDXAv+8+7UZRIeyTKWkl8mJ2RrPFyqhUXiBDEq5VCNIxHd1nRpUbqa96UTep+KKgFLLdGC4PtX9L1oSLMJ4arCZX/T46c15uFu1VwqpHruMz4m7I3O7W+CNKGlZkN8QnVMo3EPgLKVQETWpdWCcNJ2NXJWHYE/3VQTXZr4XqcMYcJSryDSbeiwvkPcaR1f9MVNr4J/qxvuO47ZcmniNSdEcMdx1TDcrQxrmTa9bL3imWAN43Hg9BHJvTkxji/ErSW7Yw82cqjmwTjexGFy6f9o546TJ+clEMQI/tiBo4lQRPz7aB97nuis4kMEhY0+vbe/5ybKoqTBrkMUG2DemplFIZxCN0Zj3DB5YEo5yNVvx4nws9fOnllHEpXGXlAZMaiNW41NoMGS2hpvJ3dke0DMrHnvEtpwFA6oTcQxZsNONqZWcjtbMi7m1wgmhPQzheZnNaqDg8l8cwke3NMJBkJZQZJsdAxTrsGLzGRbT/NTELCS2bznOAqbe36ZmjMb4yBWmhL4TrOlr4atZF2Wtfpf/LbVMG8pBfuVk8sl1lnW73ah9ngqGkSjKoFTll6qOtXPHPUWWt4tPlyuIkFg=
