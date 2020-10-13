@@ -2,7 +2,7 @@ sudo: true
 language: python
 matrix:
   include:
-    - python: 3.6.1
+    - python: 3.6
     - python: 3.7
 cache:
   pip: true
@@ -26,4 +26,4 @@ deploy:
   on:
     tags: true
     branch: master
-    python: "3.6.1"
+    python: "3.6"

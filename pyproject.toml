@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotoolz"
-version = "0.1.0-rc-1"
+version = "0.1.0-rc-2"
 description = "Consistent io iterface to read and write from/to both local and different remote resources (e.g. http, s3)"
 authors = ["eterna2 <eterna2@hotmail.com>"]
 license = "Apache-2.0"
@@ -16,7 +16,7 @@ documentation = "https://iotoolz.readthedocs.io/en/latest/"
 Changelog = "https://github.com/e2fyi/iotoolz/blob/master/CHANGELOG.md"
 
 [tool.poetry.dependencies]
-python = ">=3.6.1,<4"
+python = ">=3.6,<4"
 typing-extensions = "*"
 python-magic = {version = "0.4.*", markers = "sys_platform == 'linux'"}
 python-magic-bin = {version = "0.4.*", markers = "sys_platform == 'darwin' or sys_platform == 'windows'"}
