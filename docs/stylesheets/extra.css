@@ -1,0 +1,18 @@
+.doc-method, .doc-attribute {
+    padding: 5px 5px;
+}
+.doc-method:nth-child(odd),
+.doc-attribute:nth-child(odd) {
+    background-color: #f1f1f1;
+}
+.md-typeset h3 {
+    font-size: 1.5rem;
+    border-bottom: 2px solid #eeeeee;
+    padding-left: 5px;
+}
+h4.doc-heading {
+    font-size: 0.9rem;
+}
+div.doc-contents {
+    font-size: 0.7rem;
+}

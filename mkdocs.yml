@@ -1,0 +1,74 @@
+site_name: iotoolz
+repo_url: https://github.com/e2fyi/iotoolz
+
+nav:
+    - Overview: index.md
+    - API Reference:
+      - iotoolz:
+        - iotoolz.AbcStream: classes/AbcStream.md
+        - iotoolz.StreamInfo: classes/StreamInfo.md
+        - iotoolz.FileStream: classes/FileStream.md
+        - iotoolz.HttpStream: classes/HttpStream.md
+        - iotoolz.TempStream: classes/TempStream.md
+      - iotoolz.streams:
+        - iotoolz.streams: streams.md
+        - iotoolz.streams.Streams: classes/Streams.md
+      - iotoolz.utils:
+        - iotoolz.utils: utils.md
+    - Changelog: changelog.md
+
+theme:
+  name: material
+  favicon: assets/favicon.ico
+  #logo: assets/logo192.png
+  icon:
+    logo: fontawesome/brands/python
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.expand
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/eterna2
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/william-teo-56021b16
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - markdown_include.include
+  - pymdownx.emoji
+  - pymdownx.magiclink
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.tasklist
+  - toc:
+      permalink: true
+      slugify: !!python/name:pymdownx.slugs.uslugify
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          rendering:
+            show_source: false
+            show_if_no_docstring: true
+            show_root_heading: true
+            show_category_heading: true
+          setup_commands:
+            - import sys
+            - sys.path.append("docs")
+          selection:
+            new_path_syntax: yes
+            filters:
+              - "!^_"  # exlude all members starting with _
+              - "^__init__$"  # but always include __init__ modules and methods
+      watch:
+        - iotoolz/
+  - git-revision-date-localized:
+      fallback_to_build_date: true

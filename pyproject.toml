@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotoolz"
-version = "0.1.0-rc-2"
+version = "0.1.0-rc-3"
 description = "Consistent io iterface to read and write from/to both local and different remote resources (e.g. http, s3)"
 authors = ["eterna2 <eterna2@hotmail.com>"]
 license = "Apache-2.0"
@@ -49,6 +49,10 @@ pytest-mock = "^3.3.1"
 autoflake = "^1.4"
 pytest-cov = "^2.10.1"
 safety = "^1.9.0"
+mkdocs-material = "^6.0.2"
+mkdocstrings = "^0.13.6"
+mkdocs-git-revision-date-localized-plugin = "^0.7.2"
+markdown-include = "^0.6.0"
 
 [tool.isort]
 multi_line_output = 3

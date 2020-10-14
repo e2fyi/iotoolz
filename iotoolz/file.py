@@ -1,16 +1,18 @@
-import functools
+"""This module implements the FileStream with python native "open" method."""
 import io
 import os
 import os.path
 import pathlib
 import shutil
-from typing import IO, ContextManager, Iterable, Tuple, Union
+from typing import IO, Iterable, Tuple, Union
 
 from iotoolz._abc import AbcStream, StreamInfo
-from iotoolz.utils import contextualize_iter, guess_content_type_from_file
+from iotoolz.utils import guess_content_type_from_file
 
 
 class FileStream(AbcStream):
+    """FileStream is the stream interface to the local file system with python's "open" method."""
+
     supported_schemas = {"", "file"}
 
     def __init__(
@@ -39,20 +41,24 @@ class FileStream(AbcStream):
             **kwargs,
         )
 
-    def _read_to_iterable(
+    def read_to_iterable_(
         self, uri: str, chunk_size: int, **kwargs
-    ) -> Tuple[ContextManager[Iterable[bytes]], StreamInfo]:
+    ) -> Tuple[Iterable[bytes], StreamInfo]:
         self._content_type = self.content_type or guess_content_type_from_file(self.uri)
-        stream = open(
-            self.uri, mode="rb", buffering=self.buffering, newline=self.newline,
-        )
-        read = functools.partial(stream.read, chunk_size)
+
+        def iter_bytes() -> Iterable[bytes]:
+            with open(
+                self.uri, mode="rb", buffering=self.buffering, newline=self.newline,
+            ) as stream:
+                for chunk in stream:
+                    yield chunk
+
         return (
-            contextualize_iter(iter(read, b""), post_hook=stream.close),
+            iter_bytes(),
             StreamInfo(content_type=self.content_type, encoding=self.encoding),
         )
 
-    def _write_from_fileobj(
+    def write_from_fileobj_(
         self, uri: str, file_: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         os.makedirs(os.path.dirname(uri), exist_ok=True)
