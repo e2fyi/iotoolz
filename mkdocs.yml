@@ -48,7 +48,7 @@ markdown_extensions:
   - pymdownx.tasklist
   - toc:
       permalink: true
-      slugify: !!python/name:pymdownx.slugs.uslugify
+      # slugify: !!python/name:pymdownx.slugs.uslugify
 
 google_analytics:
   - UA-180553388-1
