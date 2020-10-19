@@ -3,7 +3,7 @@ Common io utils  based on existing libs.
 """
 import contextlib
 import functools
-from typing import Iterable, Iterator, Tuple, TypeVar, Optional
+from typing import Iterable, Iterator, Optional, Tuple, TypeVar
 
 import cytoolz
 import magic
