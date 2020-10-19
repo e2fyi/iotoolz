@@ -52,10 +52,13 @@ def test_httpstream_read_bin():
 def test_httpstream_write_put(mocker):
     url = "https://foo.bar"
     uploaded_content = None
+    headers = {}
 
     def side_effect(url, *args, **kwargs):
         nonlocal uploaded_content
+        nonlocal headers
         uploaded_content = kwargs["data"].read()
+        headers = kwargs["headers"]
         return mocker.MagicMock()
 
     mocker.patch("requests.put", side_effect=side_effect)
@@ -64,6 +67,7 @@ def test_httpstream_write_put(mocker):
         stream.write("world")
 
     assert uploaded_content == b"hello\nworld"
+    assert headers == {"content-type": "text/plain; charset=utf-8"}
 
 
 def test_httpstream_write_post(mocker):

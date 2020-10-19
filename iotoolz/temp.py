@@ -1,3 +1,4 @@
+"""This module implements the TempStream using the original tempfile in AbcStream."""
 import io
 from typing import IO, Iterable, Tuple, Union
 
@@ -6,6 +7,8 @@ from iotoolz.utils import guess_content_type_from_buffer, guess_encoding
 
 
 class TempStream(AbcStream):
+    """TempStream is the stream interface to an in-memory buffer with can rollover to local file system if the "inmem_size" arg is set."""
+
     supported_schemas = {"tmp", "temp"}
 
     def __init__(  # pylint: disable=too-many-arguments
@@ -62,12 +65,12 @@ class TempStream(AbcStream):
                 raise TypeError("data must be of type bytes or str")
             self.seek(0)
 
-    def _read_to_iterable(
+    def read_to_iterable_(
         self, uri: str, chunk_size: int, **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
         return [], StreamInfo()
 
-    def _write_from_fileobj(
+    def write_from_fileobj_(
         self, uri: str, file_: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         return StreamInfo()

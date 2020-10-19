@@ -113,5 +113,5 @@ examples/tmp.py
 # mypy
 .mypy_cache
 
-# documentations
-docs/
+# mkdocs outputs
+site/

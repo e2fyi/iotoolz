@@ -5,7 +5,7 @@ requirements:
 	poetry export -f requirements.txt --output requirements-dev.txt --dev --extras all
 
 docs: .FORCE requirements
-	poetry run sphinx-build rst docs -b dirhtml -E -P
+	poetry run mkdocs build
 
 check:
 	poetry run isort -c iotoolz
@@ -26,7 +26,7 @@ coveralls: test
 	poetry run coveralls
 
 serve-docs: docs
-	cd docs/  && poetry run python -m http.server 8000
+	cd site/  && poetry run python -m http.server 8000
 
 format:
 	poetry run autoflake -i -r ./iotoolz --remove-all-unused-imports --ignore-init-module-imports --expand-star-imports

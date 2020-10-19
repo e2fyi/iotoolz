@@ -1,6 +1,9 @@
+"""
+Common io utils  based on existing libs.
+"""
 import contextlib
 import functools
-from typing import Any, Callable, Iterable, Iterator, Tuple, TypeVar
+from typing import Iterable, Iterator, Optional, Tuple, TypeVar
 
 import cytoolz
 import magic
@@ -10,18 +13,50 @@ T = TypeVar("T")
 
 
 @contextlib.contextmanager
-def contextualize_iter(
-    iter_: Iterator[T], post_hook: Callable[[], Any]
-) -> Iterator[Iterator[T]]:
+def peek_stream(stream: T, peek: Optional[int] = None) -> Iterator[T]:
+    """
+    Context manager to restore the stream position when exiting the context.
+
+    If the arg "peek" is provided, stream will start at the provided position when
+    entering the context.
+
+    Args:
+        stream (T): Any stream object with the seek and tell method.
+        peek (Optional[int], optional): stream position to start at when entering the context. Defaults to None.
+
+    Raises:
+        TypeError: stream is not seekable.
+
+    Returns:
+        Iterator[T]: stream object with the modified position.
+    """
+    if not hasattr(stream, "seek") or not hasattr(stream, "tell"):
+        raise TypeError(f"{stream} is not seekable")
+    pos = stream.tell()  # type: ignore
     try:
-        yield iter_
+        if isinstance(peek, int):
+            stream.seek(peek)  # type: ignore
+        yield stream
     finally:
-        post_hook()
+        stream.seek(pos)  # type: ignore
 
 
 def guess_encoding(
     data: Iterable[bytes], default_encoding: str = "utf-8"
 ) -> Tuple[str, float]:
+    """
+    Guess the encoding to decode bytes into corresponding string object.
+
+    Uses chardet to attempt to progressively guess the encoding which can be used to
+    decode the bytes into corresponding strings. Returns a tuple[encoding, confidence].
+
+    Args:
+        data (Iterable[bytes]): [description]
+        default_encoding (str, optional): [description]. Defaults to "utf-8".
+
+    Returns:
+        Tuple[str, float]: [description]
+    """
 
     detector = UniversalDetector()
     for line in data:
@@ -38,6 +73,7 @@ def guess_encoding(
 guess_content_type_from_file = cytoolz.excepts(
     IOError, functools.partial(magic.from_file, mime=True), lambda _: ""
 )
+
 
 guess_content_type_from_buffer = cytoolz.excepts(
     Exception, functools.partial(magic.from_buffer, mime=True), lambda _: ""

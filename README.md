@@ -83,7 +83,7 @@ foo_txt.close()
 
 ```
 
-## Pipe streams
+## Piping streams
 
 `pipe` is method to push data to a sink (similar to NodeJS stream except it has no
 watermark or buffering).
@@ -91,8 +91,12 @@ watermark or buffering).
 ```py
 from  iotoolz.streams import open_stream
 
-local_file = open_stream("path/to/google.html", content_type="text/html", mode="w")
-temp_file = open_stream("tmp://google.html", content_type="text/html", mode="wb")
+local_file = open_stream(
+    "path/to/google.html", content_type="text/html", mode="w"
+)
+temp_file = open_stream(
+    "tmp://google.html", content_type="text/html", mode="wb"
+)
 
 # when source is closed, all sinks will be closed also
 with open_stream("https://google.com") as source:
@@ -100,8 +104,12 @@ with open_stream("https://google.com") as source:
     source.pipe(temp_file).pipe(local_file)
 
 
-local_file2 = open_stream("path/to/google1.html", content_type="text/html", mode="w")
-local_file3 = open_stream("path/to/google2.html", content_type="text/html", mode="w")
+local_file2 = open_stream(
+    "path/to/google1.html", content_type="text/html", mode="w"
+)
+local_file3 = open_stream(
+    "path/to/google2.html", content_type="text/html", mode="w"
+)
 
 # when source is closed, all sinks will be closed also
 with open_stream("tmp://foo_src", mode="w") as source:
@@ -119,20 +127,18 @@ with open_stream("tmp://foo_src", mode="w") as source:
 The abstract class `iotoolz.AbcStream` requires the following methods to be implemented:
 
 ```py
-# This is the material method to get the data from the actual IO resource.
-# It should return an iterable to the data and the corresponding StreamInfo.
-# If resources to the data need to be released, you can also return a ContextManager
-# to the iterable instead.
-def _read_to_iterable(
+# This is the material method to get the data from the actual IO resource and return
+# a Tuple with an Iterable to the data and the corresponding StreamInfo.
+def read_to_iterable_(
     self, uri: str, chunk_size: int, **kwargs
-) -> Tuple[Union[Iterable[bytes], ContextManager[Iterable[bytes]]], StreamInfo]:
+) -> Tuple[Iterable[bytes], StreamInfo]:
     ...
 
 # This is the material method to write the data to the actual IO resource.
 # This method is only triggered when "close" or "save" is called.
 # You should use the "file_" parameter (a file-like obj) to write the current data to
 # the actual IO resource.
-def _write_from_fileobj(
+def write_from_fileobj_(
     self, uri: str, file_: IO[bytes], size: int, **kwargs
 ) -> StreamInfo:
     ...
@@ -146,3 +152,36 @@ Ideally, the implementation of any `AbcStream` class should also provide
 in the future to infer what sort of schemas that will be supported by the class. For
 example, since `https` and `http` are supported by `iotoolz.HttpStream`, all uri that
 starts with `https://` and `http://` can be handled by `iotoolz.HttpStream`.
+
+### Example implementation of a HttpStream using requests
+
+```py
+class HttpStream(AbcStream):
+    supported_schemes = {"http", "https"}
+
+    def read_to_iterable_(
+        self, uri: str, chunk_size: int, **kwargs
+    ) -> Tuple[Iterable[bytes], StreamInfo]:
+        resp = requests.get(uri, stream=True, **cytoolz.dissoc(kwargs, "stream"))
+        resp.raise_for_status()
+        info = StreamInfo(
+            content_type=resp.headers.get("Content-Type"),
+            encoding=resp.encoding,
+            etag=resp.headers.get("etag"),
+        )
+        return resp.iter_content(chunk_size=chunk_size), info
+
+    def write_from_fileobj_(
+        self, uri: str, file_: IO[bytes], size: int, **kwargs
+    ) -> StreamInfo:
+        use_post = kwargs.get("use_post")
+        requests_method = requests.post if use_post else requests.put
+        resp = requests_method(
+            uri,
+            data=requests_toolbelt.StreamingIterator(size, file_),
+            **cytoolz.dissoc(kwargs, "use_post", "data")
+        )
+        resp.raise_for_status()
+        return StreamInfo()
+
+```

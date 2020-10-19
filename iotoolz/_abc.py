@@ -11,7 +11,6 @@ from typing import (
     IO,
     Any,
     Callable,
-    ContextManager,
     Iterable,
     Iterator,
     List,
@@ -22,7 +21,7 @@ from typing import (
     Union,
 )
 
-from iotoolz.utils import guess_content_type_from_buffer, guess_encoding
+from iotoolz.utils import guess_content_type_from_buffer, guess_encoding, peek_stream
 
 T = TypeVar("T")
 
@@ -38,6 +37,7 @@ def need_sync(method: Callable[..., Any]) -> Callable[..., Any]:
         method ([Callable[..., Any]]): Any AbcStream method
     """
 
+    @functools.wraps(method)
     def _implement_sync_fileobj(self: "AbcStream", *args, **kwargs) -> Any:
         self.sync()
         return method(self, *args, **kwargs)
@@ -47,7 +47,8 @@ def need_sync(method: Callable[..., Any]) -> Callable[..., Any]:
 
 @dataclasses.dataclass
 class StreamInfo:
-    """dataclass to wrap around some basic info about the stream.
+    """
+    dataclass to wrap around some basic info about the stream.
     """
 
     content_type: Optional[str] = ""
@@ -56,7 +57,14 @@ class StreamInfo:
     extras: dict = dataclasses.field(default_factory=dict)
 
 
-class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
+class AbcStream(
+    abc.ABC
+):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+    """
+    AbcStream is an abstract class which mimics python's native `open` function very
+    closely.
+    """
+
     INMEM_SIZE: int = 0
     supported_schemas: Set[str] = set()
 
@@ -73,6 +81,20 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
         **kwargs,
     ):
+        """
+        Creates a new instance of AbcStream.
+
+        Args:
+            uri (str): [description]
+            mode (str, optional): [description]. Defaults to "r".
+            buffering (int, optional): [description]. Defaults to -1.
+            encoding (str, optional): [description]. Defaults to None.
+            newline (str, optional): [description]. Defaults to None.
+            content_type (str, optional): [description]. Defaults to "".
+            inmem_size (int, optional): [description]. Defaults to None.
+            delimiter (Union[str, bytes], optional): [description]. Defaults to None.
+            chunk_size (int, optional): [description]. Defaults to io.DEFAULT_BUFFER_SIZE.
+        """
         self.uri = uri
         self.filename = os.path.basename(uri)
         self.mode = mode
@@ -97,19 +119,22 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         self._pipes: List[Tuple[str, IO]] = []
 
     @abc.abstractmethod
-    def _read_to_iterable(
+    def read_to_iterable_(
         self, uri: str, chunk_size: int, **kwargs
-    ) -> Tuple[Union[Iterable[bytes], ContextManager[Iterable[bytes]]], StreamInfo]:
+    ) -> Tuple[Iterable[bytes], StreamInfo]:
         """
-        _read_to_iterable is an abstract method to implement the reading of the source
+        read_to_iterable_ is an abstract method to implement the reading of the source
         resource into the a binary iterator - i.e. you will need to encode your data
         appropriately if it is a string.
 
         The method should return a tuple of the bytes iterator and StreamInfo object
         which ideally should provide the following info:
-            - content_type: (see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type)
-            - encoding: (see https://docs.python.org/2.4/lib/standard-encodings.html)
-            - etag: (see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag)
+
+        - content_type: (see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type)
+
+        - encoding: (see https://docs.python.org/2.4/lib/standard-encodings.html)
+
+        - etag: (see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag)
 
         An optional dict "extras" is also provided for any other information.
 
@@ -127,11 +152,11 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _write_from_fileobj(
+    def write_from_fileobj_(
         self, uri: str, file_: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         """
-        _write_from_fileobj is an abstract method to implement the write to the
+        Abstract method to implement the write to the
         destination resource from the provided file-like object.
 
         This file-like object only provides binary outputs - i.e. if the resources only
@@ -163,6 +188,24 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
         **kwargs,
     ) -> "AbcStream":
+        """
+        Creates a new instance of AbcStream. This mimics python's `open` method but
+        supports additional keyword arguments.
+
+        Args:
+            uri (str): uri string to the resource.
+            mode (str, optional): same as "open" - supports depends on the actual implementation. Defaults to "r".
+            buffering (int, optional): same as "open". Defaults to -1.
+            encoding (str, optional): encoding used to decode bytes to str. Defaults to None.
+            newline (str, optional): same as "open". Defaults to None.
+            content_type (str, optional): mime type for the resource. Defaults to "".
+            inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
+            delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
+            chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+
+        Returns:
+            AbcStream: new instance of AbcStream
+        """
         return cls(
             uri,
             mode=mode,
@@ -177,10 +220,17 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     @property
     def closed(self) -> bool:
+        """True if the stream is closed."""
         return self._file.closed
 
     @property
     def encoding(self) -> str:
+        """
+        Text encoding to use to decode internal binary data into text outputs.
+
+        Returns:
+            str: text encoding.
+        """
         if self._info:
             return (
                 self._info.encoding
@@ -191,8 +241,19 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     @property
     def content_type(self) -> str:
+        """
+        Resource media type (e.g. application/json, text/plain).
+
+        See also https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
+
+        Returns:
+            str: string describing the media type of the resource.
+        """
         if self._info:
             return self._info.content_type or self._content_type
+        if not self._content_type and self.size > 0:
+            with peek_stream(self._file, peek=0) as stream:
+                return guess_content_type_from_buffer(stream.read(1024))  # type: ignore
         return self._content_type
 
     @property
@@ -205,12 +266,44 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     @property
     def info(self) -> StreamInfo:
+        """
+        Stream info like content type, encoding, and etag.
+
+        Returns:
+            StreamInfo: StreamInfo object for the current stream.
+        """
         return self._info or StreamInfo(
             encoding=self.encoding, content_type=self.content_type
         )
 
     @need_sync
+    def peek(self, size: Optional[int] = None) -> bytes:
+        """
+        Return bytes from the stream without advancing the position.
+
+        Args:
+            size (Optional[int], optional): number of bytes to return. Return default
+            chunk size if not provided. Return everything if is -1. Defaults to None.
+
+        Returns:
+            bytes: data starting from current stream pos.
+        """
+        with peek_stream(self) as stream:
+            return stream.read(size or self._chunk_size)  # type: ignore
+
+    @need_sync
     def read(self, size: Optional[int] = -1) -> Union[str, bytes, bytearray]:
+        """
+        Read and return up to size bytes. If the argument is omitted, None, or negative,
+        data is read and returned until EOF is reached. An empty bytes object is
+        returned if the stream is already at EOF.
+
+        Args:
+            size (Optional[int], optional): number of bytes to read. Defaults to -1.
+
+        Returns:
+            Union[str, bytes, bytearray]: data starting from current stream pos.
+        """
         chunk = self._file.read(size or -1)
         if "b" in self.mode:
             return chunk
@@ -218,6 +311,16 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
 
     @need_sync
     def readline(self, size: Optional[int] = -1) -> Union[str, bytes, bytearray]:
+        """
+        Read and return one line from the stream. If size is specified, at most size
+        bytes will be read.
+
+        Args:
+            size (Optional[int], optional): [description]. Defaults to -1.
+
+        Returns:
+            Union[str, bytes, bytearray]: [description]
+        """
         chunk = self._file.readline(size or -1)
         if "b" in self.mode:
             return chunk
@@ -227,43 +330,123 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
     def readlines(
         self, hint: Optional[int] = -1
     ) -> Union[List[str], List[bytes], List[bytearray]]:
+        """
+        Read and return a list of lines from the stream. hint can be specified to
+        control the number of lines read: no more lines will be read if the total size
+        (in bytes/characters) of all lines so far exceeds hint.
+
+        Args:
+            hint (Optional[int], optional): [description]. Defaults to -1.
+
+        Returns:
+            Union[List[str], List[bytes], List[bytearray]]: [description]
+        """
         chunks = self._file.readlines(hint or -1)
         if "b" in self.mode:
             return chunks
         return [chunk.decode(self.encoding) for chunk in chunks]
 
     def write(self, data: Union[str, bytes, bytearray]) -> int:
+        """
+        Write the given bytes-like object into buffer and return the number of bytes
+        written.
+
+        The data will not be written to the actual resource until "save" or "close"
+        method is called.
+
+        Args:
+            data (Union[str, bytes, bytearray]): bytes-like object to write.
+
+        Raises:
+            IOError: stream is readonly.
+            TypeError: expect data to be of type str, bytes or bytearray.
+
+        Returns:
+            int: number of bytes written.
+        """
         if "r" in self.mode and "w" not in self.mode and "a" not in self.mode:
-            raise IOError(f"mode={self.mode} is readonly")
+            raise IOError(f"{self} is readonly: {self.mode}")
         if isinstance(data, str):
             return self._write(data.encode(self.encoding))
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError("expect data to be of type 'bytes' or 'bytearray'")
         return self._write(data)
 
-    def seek(self, offset, whence: int = 0):
+    def seek(self, offset, whence: int = 0) -> int:
+        """
+        Change the stream position to the given byte offset. offset is interpreted
+        relative to the position indicated by whence. The default value for whence is
+        SEEK_SET. Values for whence are:
+
+        SEEK_SET or 0 – start of the stream (the default); offset should be zero or positive
+
+        SEEK_CUR or 1 – current stream position; offset may be negative
+
+        SEEK_END or 2 – end of the stream; offset is usually negative
+
+        Return the new absolute position.
+
+        Args:
+            offset ([type]): offset relative to position indicated by "whence".
+            whence (int, optional): reference position - 0, 1, or 2. Defaults to 0.
+
+        Returns:
+            [int]: new absolute position.
+        """
         return self._file.seek(offset, whence)
 
     def tell(self) -> int:
+        """
+        Return the current stream position.
+
+        Returns:
+            int: current stream position.
+        """
         return self._file.tell()
 
     def flush(self):
+        """
+        Flush the write buffers of the stream if applicable.
+        This does nothing for read-only and non-blocking streams.
+        """
         self._file.flush()
 
     def save(self) -> "AbcStream":
+        """
+        Flush and stream everything in the buffer to the actual resource location.
+
+        Does nothing if mode is read-only. Will not close the stream.
+
+        Returns:
+            [AbcStream]: current stream object.
+        """
         if self.is_empty():
             return self
 
         if "w" in self.mode or "a" in self.mode:
+            # remember current pos
+            pos = self.tell()
+            self.flush()
+            # go to start of stream
             self.seek(0)
-            info = self._write_from_fileobj(
+            info = self.write_from_fileobj_(
                 self.uri, self._file, self.size, **self._kwargs
             )
             self._update_info(info)
+            # restore org pos
+            self.seek(pos)
 
         return self
 
     def close(self):
+        """
+        Flush and close this stream. This method has no effect if the file is already
+        closed. Once the file is closed, any operation on the file (e.g. reading or
+        writing) will raise a ValueError.
+
+        As a convenience, it is allowed to call this method more than once; only the
+        first call, however, will have an effect.
+        """
         try:
             self.save()
             for _, sink in self._pipes:
@@ -272,14 +455,31 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
             self._cleanup()
 
     def is_empty(self) -> bool:
-        current = self.tell()
+        """
+        True if current buffer is empty.
+
+        Returns:
+            bool: whether current buffer is empty.
+        """
+        # remember pos
+        pos = self.tell()
         # go to the end of stream
         self.seek(0, 2)
         is_empty = self.tell() == 0
-        self.seek(current)
+        # restore org pos
+        self.seek(pos)
         return is_empty
 
     def set_encoding(self, encoding: str) -> "AbcStream":
+        """
+        Set and update the encoding to use to decode the binary data into text.
+
+        Args:
+            encoding ([str]): text encoding for the stream.
+
+        Returns:
+            AbcStream: current stream object.
+        """
         self._encoding = encoding
         if self._info:
             self._info.encoding = encoding
@@ -289,8 +489,17 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return self
 
     def sync(self, force: bool = False) -> "AbcStream":
+        """
+        Loads the resource into buffer if not loaded.
+
+        Args:
+            force ([bool]): If true, load the resource into buffer again even if it is already loaded.
+
+        Returns:
+            AbcStream: current stream object.
+        """
         if not self._info or force:
-            iter_bytes, info = self._read_to_iterable(
+            iter_bytes, info = self.read_to_iterable_(
                 self.uri, self._chunk_size, **self._kwargs
             )
             self._update_info(info)
@@ -311,32 +520,43 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return self
 
     def iter_bytes(self) -> Iterator[bytes]:
+        """
+        Returns an iterator which yields a bytes stream. Will load the resource into
+        buffer if needed.
+
+        Yields:
+            Iterator[bytes]: bytes stream from the start position
+        """
         if not self._info:
-            iter_bytes, info = self._read_to_iterable(
+            iter_bytes, info = self.read_to_iterable_(
                 self.uri, self._chunk_size, **self._kwargs
             )
             self._update_info(info)
             self._file = self._tempfile(new=True)
-            if hasattr(iter_bytes, "__enter__"):
-                with iter_bytes as chunks:  # type: ignore
-                    for chunk in chunks:
-                        self._write(chunk)
-            else:
-                for chunk in iter_bytes:  # type: ignore
-                    self._write(chunk)
-                    yield chunk
+            for chunk in iter_bytes:
+                self._write(chunk)
+                yield chunk
             self.seek(0)
         else:
-            # remember curr pos
-            pos = self.tell()
-            self.seek(0)
-            read = functools.partial(self._file.read, self._chunk_size)
-            yield from iter(read, b"")
-            # go back to current pos
-            self.seek(pos)
+            with peek_stream(self._file, peek=0) as file_:
+                read = functools.partial(file_.read, self._chunk_size)
+                yield from iter(read, b"")
 
     @need_sync
     def pipe(self, sink: IO, text_mode: bool = False) -> IO:
+        """
+        Pipes the data from the current stream object into any file-like object.
+
+        Args:
+            sink (IO): Any file-like object or AbcStream object.
+            text_mode (bool, optional): If True, writes string to sink rather than bytes. Defaults to False.
+
+        Raises:
+            ValueError:  sink for pipe must be a filelike object - i.e. has write method
+
+        Returns:
+            IO: file-like object (i.e. sink) that is piped into.
+        """
         if hasattr(sink, "write") and callable(sink.write):  # type: ignore
             # if empty, don't decode
             encoding = self.encoding or "utf-8"
@@ -374,6 +594,12 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
             sink.write(data)
 
     def __iter__(self) -> Iterator[Union[bytes, str]]:
+        """
+        Yields chunks of bytes or lines depending on the mode.
+
+        Yields:
+            Iterator[Union[bytes, str]]: bytes stream if in binary mode or line stream for text mode.
+        """
         # each iter will start from beginning
         self.seek(0)
         # for binary mode, can lazily write to temp and yield the chunk at the same time
@@ -456,4 +682,4 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         return hash(self.uri.encode())
 
 
-AbcStream.register(io.IOBase)
+# AbcStream.register(io.IOBase)
