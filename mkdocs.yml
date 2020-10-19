@@ -49,6 +49,10 @@ markdown_extensions:
       permalink: true
       slugify: !!python/name:pymdownx.slugs.uslugify
 
+google_analytics:
+  - UA-180553388-1
+  - auto
+
 plugins:
   - search
   - mkdocstrings:
