@@ -57,7 +57,9 @@ class StreamInfo:
     extras: dict = dataclasses.field(default_factory=dict)
 
 
-class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
+class AbcStream(
+    abc.ABC
+):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """
     AbcStream is an abstract class which mimics python's native `open` function very
     closely.
@@ -249,10 +251,10 @@ class AbcStream(abc.ABC):  # pylint: disable=too-many-instance-attributes
         """
         if self._info:
             return self._info.content_type or self._content_type
-        with peek_stream(self._file, peek=0) as stream:
-            return self._content_type or guess_content_type_from_buffer(
-                stream.read(1024)
-            )
+        if not self._content_type and self.size > 0:
+            with peek_stream(self._file, peek=0) as stream:
+                return guess_content_type_from_buffer(stream.read(1024))  # type: ignore
+        return self._content_type
 
     @property
     def size(self) -> int:
