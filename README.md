@@ -14,7 +14,7 @@ very closely (with some additional parameters and methods such as `save`).
 
 API documentation can be found at [https://iotoolz.readthedocs.io/en/latest/](https://iotoolz.readthedocs.io/en/latest/).
 
-Change logs are available in [CHANGELOG.md](./CHANGELOG.md).
+Change logs are available in [CHANGELOG.md](https://github.com/e2fyi/iotoolz/blob/master/CHANGELOG.md).
 
 > - Python 3.6 and above
 > - Licensed under [Apache-2.0](./LICENSE).
