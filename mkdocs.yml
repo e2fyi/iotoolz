@@ -1,5 +1,6 @@
 site_name: iotoolz
 repo_url: https://github.com/e2fyi/iotoolz
+strict: false
 
 nav:
     - Overview: index.md
