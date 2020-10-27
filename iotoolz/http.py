@@ -14,7 +14,7 @@ class HttpStream(AbcStream):
     supported_schemes = {"http", "https"}
 
     def read_to_iterable_(
-        self, uri: str, chunk_size: int, **kwargs
+        self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
         """
         Implements a http GET request using "requests" with stream flag always set.
@@ -22,6 +22,7 @@ class HttpStream(AbcStream):
         Args:
             uri (str): http or https endpoint to retrieve the data.
             chunk_size (int): size for each bytes chunk (provided in the Stream constructor).
+            fileobj (IO[bytes]): file-like object of the stream buffer.
             **kwargs: keyword arguments that will be passed to the "requests.get" method.
 
         Returns:
@@ -37,7 +38,7 @@ class HttpStream(AbcStream):
         return resp.iter_content(chunk_size=chunk_size), info
 
     def write_from_fileobj_(
-        self, uri: str, file_: IO[bytes], size: int, **kwargs
+        self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         """
         Implements a http PUT or POST request using the "requests" lib.
@@ -47,7 +48,7 @@ class HttpStream(AbcStream):
 
         Args:
             uri (str): http/https endpoint to PUT/POST the data.
-            file_ (IO[bytes]): file-like object of the current data in buffer.
+            fileobj (IO[bytes]): file-like object of the current data in buffer.
             size (int): size of the data in the file-like object.
             **kwargs: additional keyword arguments to pass to the "requests.put" or "requests.post" method.
 
@@ -65,7 +66,7 @@ class HttpStream(AbcStream):
         requests_method = requests.post if use_post else requests.put
         resp = requests_method(
             uri,
-            data=requests_toolbelt.StreamingIterator(size, file_),
+            data=requests_toolbelt.StreamingIterator(size, fileobj),
             headers=headers,
             **cytoolz.dissoc(kwargs, "use_post", "data", "headers"),
         )

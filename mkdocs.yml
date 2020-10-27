@@ -4,6 +4,11 @@ strict: false
 
 nav:
     - Overview: index.md
+    - Usage:
+      - Quickstart: index.md
+      - Basic Streams: streams.md
+      - S3 Objects as Streams: s3.md
+      - Creating your CustomStream: custom_stream.md
     - API Reference:
       - iotoolz:
         - iotoolz.AbcStream: classes/AbcStream.md
@@ -11,8 +16,9 @@ nav:
         - iotoolz.FileStream: classes/FileStream.md
         - iotoolz.HttpStream: classes/HttpStream.md
         - iotoolz.TempStream: classes/TempStream.md
+      - iotoolz.extensions:
+        - iotoolz.extensions.s3: classes/S3Stream.md
       - iotoolz.streams:
-        - iotoolz.streams: streams.md
         - iotoolz.streams.Streams: classes/Streams.md
       - iotoolz.utils:
         - iotoolz.utils: utils.md

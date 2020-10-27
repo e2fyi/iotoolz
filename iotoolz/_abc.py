@@ -120,12 +120,17 @@ class AbcStream(
 
     @abc.abstractmethod
     def read_to_iterable_(
-        self, uri: str, chunk_size: int, **kwargs
+        self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
         """
         read_to_iterable_ is an abstract method to implement the reading of the source
         resource into the a binary iterator - i.e. you will need to encode your data
         appropriately if it is a string.
+
+        Alternatively, 'fileobj' argument is also provided where you can write to the
+        stream file buffer directly. In this case, you should return an empty iterable.
+        However, this will be less efficient as the actual read will only start after
+        all the data have been read  into the buffer.
 
         The method should return a tuple of the bytes iterator and StreamInfo object
         which ideally should provide the following info:
@@ -141,6 +146,7 @@ class AbcStream(
         Args:
             uri (str): source uri to the resource
             chunk_size (int): size for each chunk
+            fileobj: (IO[bytes]): temp fileobj for the stream
 
         Raises:
             NotImplementedError: [description]
@@ -153,7 +159,7 @@ class AbcStream(
 
     @abc.abstractmethod
     def write_from_fileobj_(
-        self, uri: str, file_: IO[bytes], size: int, **kwargs
+        self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         """
         Abstract method to implement the write to the
@@ -164,7 +170,7 @@ class AbcStream(
 
         Args:
             uri (str): destination uri of the resource
-            file_ (IO[bytes]): file-like object to read from
+            fileobj (IO[bytes]): file-like object to read from
             size (int): size of the data inside the file-like object
 
         Raises:
@@ -420,7 +426,7 @@ class AbcStream(
         Returns:
             [AbcStream]: current stream object.
         """
-        if self.is_empty():
+        if self.closed or self.is_empty():
             return self
 
         if "w" in self.mode or "a" in self.mode:
@@ -432,9 +438,10 @@ class AbcStream(
             info = self.write_from_fileobj_(
                 self.uri, self._file, self.size, **self._kwargs
             )
-            self._update_info(info)
-            # restore org pos
-            self.seek(pos)
+            if not self._file.closed:
+                self._update_info(info)
+                # restore org pos
+                self.seek(pos)
 
         return self
 
@@ -499,24 +506,20 @@ class AbcStream(
             AbcStream: current stream object.
         """
         if not self._info or force:
+            self._file = self._tempfile(new=True)
             iter_bytes, info = self.read_to_iterable_(
-                self.uri, self._chunk_size, **self._kwargs
+                self.uri, self._chunk_size, self._file, **self._kwargs
             )
             self._update_info(info)
-            self._file = self._tempfile(new=True)
-            if hasattr(iter_bytes, "__enter__"):
-                with iter_bytes as chunks:  # type: ignore
-                    for chunk in chunks:
-                        self._write(chunk)
-            else:
-                for chunk in iter_bytes:  # type: ignore
-                    self._write(chunk)
-
+            iter_bytes = iter_bytes or []
+            for chunk in iter_bytes:
+                self._write(chunk)
             self._file.seek(0)
-            self._content_type = self._content_type or guess_content_type_from_buffer(
-                self._file.read(1024)
-            )
-            self._file.seek(0)
+            if not self._content_type:
+                with peek_stream(self._file, peek=0) as stream:
+                    self._content_type = guess_content_type_from_buffer(
+                        stream.read(1024)
+                    )
         return self
 
     def iter_bytes(self) -> Iterator[bytes]:
@@ -529,13 +532,18 @@ class AbcStream(
         """
         if not self._info:
             iter_bytes, info = self.read_to_iterable_(
-                self.uri, self._chunk_size, **self._kwargs
+                self.uri, self._chunk_size, self._file, **self._kwargs
             )
             self._update_info(info)
             self._file = self._tempfile(new=True)
-            for chunk in iter_bytes:
-                self._write(chunk)
-                yield chunk
+            if iter_bytes:
+                for chunk in iter_bytes:
+                    self._write(chunk)
+                    yield chunk
+            else:
+                with peek_stream(self._file, peek=0) as file_:
+                    read = functools.partial(file_.read, self._chunk_size)
+                    yield from iter(read, b"")
             self.seek(0)
         else:
             with peek_stream(self._file, peek=0) as file_:

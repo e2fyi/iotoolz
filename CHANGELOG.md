@@ -1,5 +1,9 @@
 # `iotoolz`
 
+## v0.1.0-rc-4
+
+- Add extension `iotoolz.extensions.s3.S3Stream` which is implemented with `boto3`.
+
 ## v0.1.0-rc-3
 
 - Converted sphinx docs to mkdocs for better look and feel.
