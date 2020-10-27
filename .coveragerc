@@ -4,7 +4,7 @@ source = iotoolz
 omit =
     **/*_test.py
     **/__init__.py
-
+    **/_not_implemented.py
 [report]
 fail_under = 50
 show_missing = True

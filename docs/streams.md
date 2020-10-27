@@ -14,6 +14,8 @@ implemented streams. The singleton object's methods are exposed as module callab
 ## Usage
 
 ```py
+import pandas
+
 from iotoolz.streams import open_stream, register_stream, set_schema_kwargs
 
 # do not verify the ssl cert for all https requests
@@ -28,12 +30,13 @@ with open_stream("https://foo/bar/data.txt", "r") as stream:
 with open_stream("https://foo.bar/api/data", "wb") as stream:
     stream.write(b"hello world")
 
-# Read a file from local path
-with open_stream("path/to/data.csv", "r") as csv_source:
-    # create a tempfile
-    tmpsink = open_stream("tmp://foobar.txt", "w")
+# Copying a local file to s3
+with open_stream("path/to/data.csv", "r") as csv_source,
+     open_stream("s3://bucket/foobar.txt?StorageClass=STANDARD", "w") as s3_sink:
     # pipe content in csv_source to tmpsink
-    csv_source.pipe(tmpsink)
+    csv_source.pipe(s3_sink)
 
-print(tmpsink.read())  # prints contents of csv_source
+# load to pandas dataframe from s3 fileobj
+with open_stream("s3://bucket/foobar.csv", "r") as csv:
+    df = pd.read_csv(csv)
 ```

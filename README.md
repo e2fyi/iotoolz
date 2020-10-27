@@ -19,12 +19,35 @@ Change logs are available in [CHANGELOG.md](https://github.com/e2fyi/iotoolz/blo
 > - Python 3.6 and above
 > - Licensed under [Apache-2.0](./LICENSE).
 
-## Quickstart
+## Supported streams
+
+Current the following streams are supported:
+
+- `iotoolz.FileStream`: wrapper over built-in `open` function (`file://`)
+- `iotoolz.TempStream`: in-memory stream that will rollover to disk (`tmp://`, `temp://`)
+- `iotoolz.HttpStream`: http or https stream implemented with `requests` (`http://`, `https://`)
+- `iotoolz.extensions.S3Stream`: s3 stream implemented with `boto3` (`s3://`, `s3a://`, `s3n://`)
+
+## Installation
 
 ```bash
 # install the default packages only (most lite-weight)
 pip install iotoolz
+
+# install dependencies for specific extension
+pip install iotoolz[boto3]
+
+# install all the extras
+pip install iotoolz[all]
 ```
+
+Available extras:
+
+- `all`: All the optional dependencies
+- `boto3`: `boto3` for `iotoolz.extensions.S3Stream`
+- `minio`: TODO
+
+## Quickstart
 
 ### iotoolz.streams
 
@@ -81,6 +104,11 @@ foo_txt.write("\nnext line")
 # save and close the data
 foo_txt.close()
 
+
+# save a local file to S3
+with open_stream("key.txt", "rb") as csv_source,
+     open_stream("s3://bucket/folder/key.txt", "wb") as s3_sink:
+    csv_source.pipe(s3_sink)
 ```
 
 ## Piping streams
@@ -121,67 +149,3 @@ with open_stream("tmp://foo_src", mode="w") as source:
 ```
 
 > TODO support transform streams so that pipe can be more useful
-
-## Creating a custom AbcStream class
-
-The abstract class `iotoolz.AbcStream` requires the following methods to be implemented:
-
-```py
-# This is the material method to get the data from the actual IO resource and return
-# a Tuple with an Iterable to the data and the corresponding StreamInfo.
-def read_to_iterable_(
-    self, uri: str, chunk_size: int, **kwargs
-) -> Tuple[Iterable[bytes], StreamInfo]:
-    ...
-
-# This is the material method to write the data to the actual IO resource.
-# This method is only triggered when "close" or "save" is called.
-# You should use the "file_" parameter (a file-like obj) to write the current data to
-# the actual IO resource.
-def write_from_fileobj_(
-    self, uri: str, file_: IO[bytes], size: int, **kwargs
-) -> StreamInfo:
-    ...
-```
-
-> `StreamInfo` is a dataclass to hold the various info about the data stream (e.g.
-> content_type, encoding and etag).
-
-Ideally, the implementation of any `AbcStream` class should also provide
-`supported_schemas` (Set[str]) as a class variable. This class variable will be used
-in the future to infer what sort of schemas that will be supported by the class. For
-example, since `https` and `http` are supported by `iotoolz.HttpStream`, all uri that
-starts with `https://` and `http://` can be handled by `iotoolz.HttpStream`.
-
-### Example implementation of a HttpStream using requests
-
-```py
-class HttpStream(AbcStream):
-    supported_schemes = {"http", "https"}
-
-    def read_to_iterable_(
-        self, uri: str, chunk_size: int, **kwargs
-    ) -> Tuple[Iterable[bytes], StreamInfo]:
-        resp = requests.get(uri, stream=True, **cytoolz.dissoc(kwargs, "stream"))
-        resp.raise_for_status()
-        info = StreamInfo(
-            content_type=resp.headers.get("Content-Type"),
-            encoding=resp.encoding,
-            etag=resp.headers.get("etag"),
-        )
-        return resp.iter_content(chunk_size=chunk_size), info
-
-    def write_from_fileobj_(
-        self, uri: str, file_: IO[bytes], size: int, **kwargs
-    ) -> StreamInfo:
-        use_post = kwargs.get("use_post")
-        requests_method = requests.post if use_post else requests.put
-        resp = requests_method(
-            uri,
-            data=requests_toolbelt.StreamingIterator(size, file_),
-            **cytoolz.dissoc(kwargs, "use_post", "data")
-        )
-        resp.raise_for_status()
-        return StreamInfo()
-
-```

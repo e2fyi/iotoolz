@@ -42,7 +42,7 @@ class FileStream(AbcStream):
         )
 
     def read_to_iterable_(
-        self, uri: str, chunk_size: int, **kwargs
+        self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
         self._content_type = self.content_type or guess_content_type_from_file(self.uri)
 
@@ -59,7 +59,7 @@ class FileStream(AbcStream):
         )
 
     def write_from_fileobj_(
-        self, uri: str, file_: IO[bytes], size: int, **kwargs
+        self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         os.makedirs(os.path.dirname(uri), exist_ok=True)
         with open(
@@ -69,5 +69,5 @@ class FileStream(AbcStream):
             encoding=self.encoding if "b" not in self.mode else None,
             newline=self.newline,
         ) as stream:
-            shutil.copyfileobj(file_, stream)
+            shutil.copyfileobj(fileobj, stream)
         return StreamInfo()

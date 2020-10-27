@@ -66,11 +66,11 @@ class TempStream(AbcStream):
             self.seek(0)
 
     def read_to_iterable_(
-        self, uri: str, chunk_size: int, **kwargs
+        self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
         return [], StreamInfo()
 
     def write_from_fileobj_(
-        self, uri: str, file_: IO[bytes], size: int, **kwargs
+        self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         return StreamInfo()

@@ -73,3 +73,14 @@ def test_filestream_write(tmpdir):
 
     with open(dst_path, "rb") as stream:
         assert stream.read() == expected_bin
+
+
+def test_filestream_pipe(tmpdir, sample_text):
+    expected_bin = b"hello\nworld"
+
+    dst_path = tmpdir / "iotoolz" / "example.txt"
+    with FileStream(sample_text) as source, FileStream(dst_path, mode="wb") as stream:
+        source.pipe(stream)
+
+    with open(dst_path, "rb") as stream:
+        assert stream.read() == expected_bin
