@@ -3,6 +3,7 @@
 ## v0.1.0-rc-6
 
 - Fix typo for HttpStream: schemes -> schemas
+- key for S3Stream should not have leading slash
 
 ## v0.1.0-rc-5
 
