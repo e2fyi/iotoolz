@@ -8,8 +8,6 @@ def mock_stream(supported_schemas: Set[str], msg: str) -> Type[AbcStream]:
     class NotImplementedStream(AbcStream):
         """NotImplementedStream is a mock stream interface for extension streams that does not have the required dependencies installed."""
 
-        supported_schemas = supported_schemas
-
         def __init__(self, *args, **kwargs):  # pylint: disable=super-init-not-called
             raise NotImplementedError(msg)
 
@@ -22,5 +20,7 @@ def mock_stream(supported_schemas: Set[str], msg: str) -> Type[AbcStream]:
             self, uri: str, fileobj: IO[bytes], size: int, **kwargs
         ) -> StreamInfo:
             raise NotImplementedError(msg)
+
+    NotImplementedStream.supported_schemas = supported_schemas
 
     return NotImplementedStream
