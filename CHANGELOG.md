@@ -1,5 +1,13 @@
 # `iotoolz`
 
+## v0.1.0-rc-6
+
+- Fix typo for HttpStream: schemes -> schemas
+
+## v0.1.0-rc-5
+
+- Fix bug where dynamic mock stream class is improperly created when the required dependencies are not available.
+
 ## v0.1.0-rc-4
 
 - Add extension `iotoolz.extensions.s3.S3Stream` which is implemented with `boto3`.
