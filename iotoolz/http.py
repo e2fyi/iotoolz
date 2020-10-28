@@ -11,7 +11,7 @@ from iotoolz._abc import AbcStream, StreamInfo
 class HttpStream(AbcStream):
     """HttpStream is the stream interface to http/https resources using "requests"."""
 
-    supported_schemes = {"http", "https"}
+    supported_schemas = {"http", "https"}
 
     def read_to_iterable_(
         self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
