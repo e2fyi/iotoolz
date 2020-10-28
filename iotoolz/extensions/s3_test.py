@@ -41,7 +41,7 @@ def test_s3stream(s3):
         assert stream.info.extras["Metadata"] == {"meta-key": "meta-value"}
         assert stream.info.extras["StorageClass"] == "REDUCED_REDUNDANCY"
 
-    resp = s3.get_object_tagging(Bucket="somebucket", Key="/foo/bar.txt")
+    resp = s3.get_object_tagging(Bucket="somebucket", Key="foo/bar.txt")
     assert resp["TagSet"] == [
         {"Key": "key1", "Value": "value1"},
         {"Key": "key2", "Value": "value2"},
