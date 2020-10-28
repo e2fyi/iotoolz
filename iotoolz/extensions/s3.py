@@ -103,6 +103,8 @@ class S3Stream(AbcStream):
             use_threads=use_threads or self._default_transfer_config.use_threads,
         )
         self._scheme, self.bucket, self.key, query, _ = urllib.parse.urlsplit(uri)
+        if self.key.startswith("/"):
+            self.key = self.key[1:]
         # keep last query value
         query_str = {
             key: value[-1]
