@@ -751,7 +751,6 @@ class AbcStream(
             max_size=self._inmem_size or self.INMEM_SIZE,
             mode="w+b",  # always binary mode
             buffering=self.buffering,
-            encoding=self.encoding,
             newline=self.newline,
         )
         return self._buffer
