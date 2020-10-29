@@ -28,7 +28,9 @@ class HttpStream(AbcStream):
         Returns:
             Tuple[Iterable[bytes], StreamInfo]: tuple of the bytes iterable and StreamInfo.
         """
-        resp = requests.get(uri, stream=True, **cytoolz.dissoc(kwargs, "stream"))
+        resp = requests.get(
+            uri, stream=True, **cytoolz.dissoc(kwargs, "stream", "use_post")
+        )
         resp.raise_for_status()
         info = StreamInfo(
             content_type=resp.headers.get("Content-Type"),

@@ -1,5 +1,10 @@
 # `iotoolz`
 
+## v0.1.0-rc-8
+
+- Fix rollover to disk error
+- Fix doc
+
 ## v0.1.0-rc-7
 
 - Added path-like methods to AbcStream (i.e. similar to `pathlib.Path`)

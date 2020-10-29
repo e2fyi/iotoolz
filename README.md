@@ -70,20 +70,23 @@ from iotoolz.streams import (
     set_buffer_rollover_size,
 )
 
-# do not verify the ssl cert for HttpStream (via requests)
-set_schema_kwargs("https", verify=False)
+# set params to pass to the Stream obj handling https
+# i.e. HttpStream (implemented with requests)
+set_schema_kwargs(
+    "https",
+    verify=False,  # do not verify ssl cert
+    use_post=True  # use POST instead of PUT when writing to https
+)
 
 # use a custom client for S3Stream (via boto3)
 set_schema_kwargs(
     "s3",
-    {
-        "client": boto3.client(
-            "s3",
-            aws_access_key_id=ACCESS_KEY,
-            aws_secret_access_key=SECRET_KEY,
-            aws_session_token=SESSION_TOKEN,
-        )
-    },
+    client=boto3.client(
+        "s3",
+        aws_access_key_id=ACCESS_KEY,
+        aws_secret_access_key=SECRET_KEY,
+        aws_session_token=SESSION_TOKEN,
+    )
 )
 
 # buffer will rollover to disk if the data is more than 100 MB
