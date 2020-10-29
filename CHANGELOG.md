@@ -1,5 +1,13 @@
 # `iotoolz`
 
+## v0.1.0-rc-7
+
+- Added path-like methods to AbcStream (i.e. similar to `pathlib.Path`)
+
+  - `mkdir`: creates a directory if appropriate for the stream
+  - `iter_dir`: list streams in the directory
+  - `glob`: list streams in the directory with uri that matches the pattern
+
 ## v0.1.0-rc-6
 
 - Fix typo for HttpStream: schemes -> schemas
