@@ -2,7 +2,7 @@
 import io
 import os.path
 import urllib.parse
-from typing import IO, Any, Dict, Iterable, Tuple, Type, Union
+from typing import IO, Any, Dict, Iterable, Iterator, Tuple, Type, Union
 
 try:
     import boto3
@@ -275,7 +275,8 @@ class S3Stream(AbcStream):
         """This method does nothing as you do not need to create a 'folder' for an object store."""
         ...
 
-    def iter_dir_(self) -> Iterable[str]:
+    def _iter_dir_(self) -> Iterable[Tuple[str, str]]:
+        """Yields tuple of uri and etag in a directory."""
         continuation_token: str = ""
         if self.key.endswith("/"):
             prefix = self.key
@@ -292,10 +293,22 @@ class S3Stream(AbcStream):
             for content in response.get("Contents", []):
                 key = content.get("Key")
                 if key:
-                    yield f"{self._scheme}://{self.bucket}/{key}"
+                    yield f"{self._scheme}://{self.bucket}/{key}", content.get("ETag")
 
             if not response.get("IsTruncated"):  # At the end of the list?
                 break
+
+    def iter_dir_(self) -> Iterable[str]:
+        return (uri for uri, etag in self._iter_dir_())
+
+    def iter_dir(self) -> Iterator["S3Stream"]:
+        """
+        If the current stream is a directory, this method will yield all Stream
+        in the directory. Otherwise, it should yield all Stream in the same
+        directory (or level) as the current stream.
+        """
+        for uri, etag in self._iter_dir_():
+            yield self.clone(uri, content_type="", encoding=None, etag=etag)  # type: ignore
 
     def exists(self) -> bool:
         """Whether the stream points to an existing resource."""

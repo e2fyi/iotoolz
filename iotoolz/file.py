@@ -26,6 +26,7 @@ class FileStream(AbcStream):
         inmem_size: int = None,
         delimiter: Union[str, bytes] = None,
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
+        etag: str = "",
         **kwargs,
     ):
         super().__init__(
@@ -38,6 +39,7 @@ class FileStream(AbcStream):
             inmem_size,
             delimiter,
             chunk_size,
+            etag,
             **kwargs,
         )
 

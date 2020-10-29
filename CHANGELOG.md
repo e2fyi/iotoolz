@@ -1,5 +1,10 @@
 # `iotoolz`
 
+## v0.1.0-rc-10
+
+- Added `etag` as arg to stream constructor
+- `S3Stream.iter_dir()` will now yield stream with etag
+
 ## v0.1.0-rc-9
 
 - Added `exists` to check if a stream points to an existing resource

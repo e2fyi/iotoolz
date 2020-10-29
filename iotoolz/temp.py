@@ -27,6 +27,7 @@ class TempStream(AbcStream):
         inmem_size: int = None,
         delimiter: Union[str, bytes] = None,
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
+        etag: str = "",
         **kwargs,
     ):
         """
@@ -43,6 +44,8 @@ class TempStream(AbcStream):
             inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
             delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
             chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+            etag (str, optional): etag for the stream content. Defaults to "".
+
         """
         super().__init__(
             uri,
@@ -54,6 +57,7 @@ class TempStream(AbcStream):
             inmem_size,
             delimiter,
             chunk_size,
+            etag,
             **kwargs,
         )
         self._info = StreamInfo(content_type=content_type, encoding=encoding or "utf-8")
@@ -137,6 +141,7 @@ class TempStream(AbcStream):
         inmem_size: int = None,
         delimiter: Union[str, bytes] = None,
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
+        etag: str = "",
         **kwargs,
     ) -> "TempStream":
         """
@@ -152,6 +157,7 @@ class TempStream(AbcStream):
             inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
             delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
             chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+            etag (str, optional): etag for the stream content. Defaults to "".
             **kwargs: Additional keyword arguments to the stream (depends on implementation)
 
         Returns:
