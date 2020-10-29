@@ -106,6 +106,7 @@ class Streams:
         inmem_size: int = None,
         delimiter: Union[str, bytes] = None,
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
+        etag: str = "",
         schema_kwargs: dict = None,
         **extra_kwargs,
     ) -> AbcStream:
@@ -154,6 +155,7 @@ class Streams:
             inmem_size (int, optional): max data size before buffer is rollover into disk. Defaults to None (i.e. never - may result in MemoryError).
             delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
             chunk_size (int, optional): size of chunks to return in binary mode. Defaults to io.DEFAULT_BUFFER_SIZE.
+            etag (str, optional): etag for the stream content. Defaults to "".
             schema_kwargs (dict, optional): dict of schema to default parameters for the corresponding AbcStreams. Defaults to None.
 
         Returns:
@@ -186,6 +188,7 @@ class Streams:
             inmem_size=inmem_size or self.INMEM_SIZE,
             delimiter=delimiter,
             chunk_size=chunk_size,
+            etag=etag,
             **kwargs,
         )
 

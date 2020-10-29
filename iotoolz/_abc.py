@@ -83,21 +83,24 @@ class AbcStream(
         inmem_size: int = None,
         delimiter: Union[str, bytes] = None,
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
+        etag: str = "",
         **kwargs,
     ):
         """
         Creates a new instance of AbcStream.
 
         Args:
-            uri (str): [description]
-            mode (str, optional): [description]. Defaults to "r".
-            buffering (int, optional): [description]. Defaults to -1.
-            encoding (str, optional): [description]. Defaults to None.
-            newline (str, optional): [description]. Defaults to None.
-            content_type (str, optional): [description]. Defaults to "".
-            inmem_size (int, optional): [description]. Defaults to None.
-            delimiter (Union[str, bytes], optional): [description]. Defaults to None.
-            chunk_size (int, optional): [description]. Defaults to io.DEFAULT_BUFFER_SIZE.
+            uri (str): uri string to the resource.
+            mode (str, optional): same as "open" - supports depends on the actual implementation. Defaults to "r".
+            buffering (int, optional): same as "open". Defaults to -1.
+            encoding (str, optional): encoding used to decode bytes to str. Defaults to None.
+            newline (str, optional): same as "open". Defaults to None.
+            content_type (str, optional): mime type for the resource. Defaults to "".
+            inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
+            delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
+            chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+            etag (str, optional): etag for the stream content. Defaults to "".
+            **kwargs: Additional keyword arguments to the stream (depends on implementation)
         """
         self.uri = uri
         self.filename = os.path.basename(uri)
@@ -107,6 +110,7 @@ class AbcStream(
 
         self._encoding = encoding or "utf-8"
         self._content_type = content_type
+        self._etag = etag
         self._delimiter = delimiter
         self._chunk_size = chunk_size
         self._inmem_size = inmem_size
@@ -255,6 +259,7 @@ class AbcStream(
         inmem_size: int = None,
         delimiter: Union[str, bytes] = None,
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
+        etag: str = "",
         **kwargs,
     ) -> "AbcStream":
         """
@@ -271,6 +276,7 @@ class AbcStream(
             inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
             delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
             chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+            etag (str, optional): etag for the stream content. Defaults to "".
             **kwargs: Additional keyword arguments to the stream (depends on implementation)
 
         Returns:
@@ -285,6 +291,7 @@ class AbcStream(
             inmem_size=inmem_size,
             delimiter=delimiter,
             chunk_size=chunk_size,
+            etag=etag,
             **kwargs,
         )
 
@@ -332,6 +339,13 @@ class AbcStream(
         return self._content_type
 
     @property
+    def etag(self) -> str:
+        """Identifier for a specific version of a resource."""
+        if self._info:
+            return self._info.etag or self._etag
+        return self._etag
+
+    @property
     def size(self) -> int:
         curr = self.tell()
         self.seek(0, 2)
@@ -348,7 +362,7 @@ class AbcStream(
             StreamInfo: StreamInfo object for the current stream.
         """
         return self._info or StreamInfo(
-            encoding=self.encoding, content_type=self.content_type
+            encoding=self.encoding, content_type=self.content_type, etag=self.etag
         )
 
     @need_sync
@@ -787,6 +801,9 @@ class AbcStream(
         else:
             info.content_type = info.content_type or self.content_type
             info.encoding = info.encoding or self.encoding
+            info.etag = info.etag or self.etag
+            if self._info:
+                info.extras = info.extras or self._info.extras
             self._info = info
 
     def __repr__(self):
