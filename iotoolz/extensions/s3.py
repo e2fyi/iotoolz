@@ -276,6 +276,7 @@ class S3Stream(AbcStream):
         ...
 
     def _iter_dir_(self) -> Iterable[Tuple[str, str]]:
+        """Yields tuple of uri and etag in a directory."""
         continuation_token: str = ""
         if self.key.endswith("/"):
             prefix = self.key
