@@ -1,5 +1,6 @@
 """This module implements the FileStream with python native "open" method."""
 import io
+import os.path
 import urllib.parse
 from typing import IO, Any, Dict, Iterable, Tuple, Type, Union
 
@@ -256,3 +257,31 @@ class S3Stream(AbcStream):
             key: value for key, value in kwargs.items() if key in ALLOWED_UPLOAD_ARGS
         }
         return cls
+
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        """This method does nothing as you do not need to create a 'folder' for an object store."""
+        ...
+
+    def iter_dir_(self) -> Iterable[str]:
+        continuation_token: str = ""
+        if self.key.endswith("/"):
+            prefix = self.key
+        else:
+            prefix = os.path.dirname(self.key)
+
+        while True:
+            list_kwargs = {"MaxKeys": 1000, "Prefix": prefix, "Bucket": self.bucket}
+            if continuation_token:
+                list_kwargs["ContinuationToken"] = continuation_token
+            response = self._client.list_objects_v2(**list_kwargs)
+
+            continuation_token = response.get("NextContinuationToken")
+            for content in response.get("Contents", []):
+                key = content.get("Key")
+                if key:
+                    yield f"{self._scheme}://{self.bucket}/{key}"
+
+            if not response.get("IsTruncated"):  # At the end of the list?
+                break

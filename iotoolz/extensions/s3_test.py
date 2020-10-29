@@ -46,3 +46,7 @@ def test_s3stream(s3):
         {"Key": "key1", "Value": "value1"},
         {"Key": "key2", "Value": "value2"},
     ]
+
+    assert list(S3Stream("s3://somebucket/foo/").iter_dir()) == [
+        S3Stream("s3://somebucket/foo/bar.txt")
+    ]

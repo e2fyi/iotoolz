@@ -1,3 +1,5 @@
+import gc
+
 import pytest
 
 from iotoolz.temp import TempStream
@@ -72,6 +74,28 @@ def test_tempstream_write():
     stream.write(b"foo bar")
     stream.seek(0)
     assert stream.read() == b"foo bar"
+
+
+def test_tempstream_iter_dir():
+
+    gc.collect()
+
+    t1 = TempStream("tmp://foo/bar/data.txt", data="hello world1")
+    t2 = TempStream("tmp://foo/data.txt", data="hello world2")
+    t3 = TempStream("tmp://foo/bar/")
+
+    assert list(t2.iter_dir()) == [t1, t2, t3]
+    assert list(t3.iter_dir()) == [t1, t3]
+    assert list(t3.iter_dir())[0].read() == "hello world1"
+
+
+def test_tempstream_weakref():
+
+    t1 = TempStream("tmp://foo/bar/")
+    TempStream("tmp://foo/bar/data.txt", data="hello world1")
+    gc.collect()
+
+    assert list(t1.iter_dir()) == [t1]
 
 
 def test_pipe_basic():

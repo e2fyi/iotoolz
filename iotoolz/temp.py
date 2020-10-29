@@ -1,9 +1,13 @@
 """This module implements the TempStream using the original tempfile in AbcStream."""
 import io
-from typing import IO, Iterable, Tuple, Union
+import os.path
+import weakref
+from typing import IO, Iterable, Iterator, Tuple, Union
 
 from iotoolz._abc import AbcStream, StreamInfo
 from iotoolz.utils import guess_content_type_from_buffer, guess_encoding
+
+_TEMPSTREAMS: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
 
 class TempStream(AbcStream):
@@ -65,6 +69,9 @@ class TempStream(AbcStream):
                 raise TypeError("data must be of type bytes or str")
             self.seek(0)
 
+        # register to weakdict
+        _TEMPSTREAMS[self.uri] = self
+
     def read_to_iterable_(
         self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
@@ -74,3 +81,28 @@ class TempStream(AbcStream):
         self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         return StreamInfo()
+
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        """This method does nothing as you do not need to create a folder for an in-memory buffer."""
+        ...
+
+    def iter_dir_(self) -> Iterable[str]:
+        dirpath = self.uri if self.uri.endswith("/") else os.path.dirname(self.uri)
+
+        return (
+            uri
+            for uri in _TEMPSTREAMS
+            if uri.startswith(dirpath)
+            if _TEMPSTREAMS.get(uri)
+        )
+
+    def iter_dir(self) -> Iterator["TempStream"]:
+        """
+        If the current stream is a directory, this method will yield all Stream
+        in the directory. Otherwise, it should yield all Stream in the same
+        directory (or level) as the current stream.
+        """
+        whitelist = set(self.iter_dir_())
+        return (value for key, value in _TEMPSTREAMS.items() if key in whitelist)
