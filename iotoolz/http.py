@@ -84,3 +84,10 @@ class HttpStream(AbcStream):
     def iter_dir_(self) -> Iterable[str]:
         """This method does nothing."""
         return ()
+
+    def exists(self) -> bool:
+        """Whether the http resource exists."""
+        resp = requests.head(
+            self.uri, **cytoolz.dissoc(self._kwargs, "stream", "use_post")
+        )
+        return resp.ok

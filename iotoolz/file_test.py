@@ -68,9 +68,13 @@ def test_filestream_write(tmpdir):
     expected_bin = b"hello\nworld"
 
     dst_path = tmpdir / "iotoolz" / "example.txt"
+
+    assert not FileStream(dst_path).exists()
+
     with FileStream(dst_path, mode="wb") as stream:
         stream.write(expected_bin)
 
+    assert FileStream(dst_path).exists()
     with open(dst_path, "rb") as stream:
         assert stream.read() == expected_bin
 

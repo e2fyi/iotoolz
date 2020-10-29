@@ -29,6 +29,21 @@ class TempStream(AbcStream):
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
         **kwargs,
     ):
+        """
+        Creates a new instance of TempStream.
+
+        Args:
+            uri (str): uri string to the resource.
+            data Union[str, bytes, bytearray]): initial data to the stream.
+            mode (str, optional): same as "open" - supports depends on the actual implementation. Defaults to "r".
+            buffering (int, optional): same as "open". Defaults to -1.
+            encoding (str, optional): encoding used to decode bytes to str. Defaults to None.
+            newline (str, optional): same as "open". Defaults to None.
+            content_type (str, optional): mime type for the resource. Defaults to "".
+            inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
+            delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
+            chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+        """
         super().__init__(
             uri,
             mode,
@@ -106,3 +121,52 @@ class TempStream(AbcStream):
         """
         whitelist = set(self.iter_dir_())
         return (value for key, value in _TEMPSTREAMS.items() if key in whitelist)
+
+    def exists(self) -> bool:
+        """TempStream will always exist."""
+        return True
+
+    @classmethod
+    def open(
+        cls,
+        uri: str,
+        mode: str = "r",
+        buffering: int = -1,
+        encoding: str = None,
+        newline: str = None,
+        inmem_size: int = None,
+        delimiter: Union[str, bytes] = None,
+        chunk_size: int = io.DEFAULT_BUFFER_SIZE,
+        **kwargs,
+    ) -> "TempStream":
+        """
+        Creates a new instance of TempStream.
+
+        Args:
+            uri (str): uri string to the resource.
+            mode (str, optional): same as "open" - supports depends on the actual implementation. Defaults to "r".
+            buffering (int, optional): same as "open". Defaults to -1.
+            encoding (str, optional): encoding used to decode bytes to str. Defaults to None.
+            newline (str, optional): same as "open". Defaults to None.
+            content_type (str, optional): mime type for the resource. Defaults to "".
+            inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
+            delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
+            chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+            **kwargs: Additional keyword arguments to the stream (depends on implementation)
+
+        Returns:
+            TempStream: new instance of TempStream
+        """
+        if uri in _TEMPSTREAMS:
+            return _TEMPSTREAMS[uri]  # type: ignore
+        return cls(
+            uri,
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            newline=newline,
+            inmem_size=inmem_size,
+            delimiter=delimiter,
+            chunk_size=chunk_size,
+            **kwargs,
+        )

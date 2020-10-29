@@ -7,6 +7,7 @@ from typing import IO, Any, Dict, Iterable, Tuple, Type, Union
 try:
     import boto3
     import boto3.s3.transfer
+    import botocore.errorfactory
 except ImportError as error:
     raise ImportError(
         "S3Stream cannot be used because 'boto3' is not installed. "
@@ -17,6 +18,12 @@ from iotoolz._abc import AbcStream, StreamInfo
 
 ALLOWED_DOWNLOAD_ARGS = frozenset(boto3.s3.transfer.S3Transfer.ALLOWED_DOWNLOAD_ARGS)
 ALLOWED_UPLOAD_ARGS = frozenset(boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS)
+ALLOWED_HEAD_ARGS = {
+    "VersionId",
+    "SSECustomerAlgorithm",
+    "SSECustomerKey",
+    "RequestPayer",
+}
 
 
 class S3Stream(AbcStream):
@@ -87,6 +94,7 @@ class S3Stream(AbcStream):
             inmem_size,
             delimiter,
             chunk_size,
+            **kwargs,
         )
         self._client = client or self._default_client or boto3.client("s3")
         self._transfer_config = boto3.s3.transfer.TransferConfig(
@@ -126,6 +134,9 @@ class S3Stream(AbcStream):
         self._extra_upload_args: Dict[str, Any] = {
             **self._default_extra_upload_args,
             **extra_upload_args,
+        }
+        self._head_args = {
+            key: value for key, value in kwargs.items() if key in ALLOWED_HEAD_ARGS
         }
 
     def read_to_iterable_(
@@ -285,3 +296,21 @@ class S3Stream(AbcStream):
 
             if not response.get("IsTruncated"):  # At the end of the list?
                 break
+
+    def exists(self) -> bool:
+        """Whether the stream points to an existing resource."""
+        try:
+            resp = self._client.head_object(
+                Bucket=self.bucket, Key=self.key, **self._head_args
+            )
+            self._content_type = resp.get("ContentType", self._content_type)
+            self._encoding = resp.get("ContentEncoding", self._encoding)
+            self._info = StreamInfo(
+                content_type=self._content_type,
+                encoding=self.encoding,
+                etag=resp.get("ETag", ""),
+                extras=resp,
+            )
+            return True
+        except botocore.errorfactory.ClientError:
+            return False

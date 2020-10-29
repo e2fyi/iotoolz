@@ -1,5 +1,11 @@
 # `iotoolz`
 
+## v0.1.0-rc-9
+
+- Added `exists` to check if a stream points to an existing resource
+- `glob` now takes in 1 argument only, which is the pattern
+- `TempStream.open`, `iotoolz.streams.open_stream`, and `iotoolz.streams.Stream` now will always return an existing `TempStream` (i.e. same uri)
+
 ## v0.1.0-rc-8
 
 - Fix rollover to disk error

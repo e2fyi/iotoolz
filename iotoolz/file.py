@@ -106,3 +106,7 @@ class FileStream(AbcStream):
     def iter_dir_(self) -> Iterable[str]:
         dirpath = self.uri if os.path.isdir(self.uri) else os.path.dirname(self.uri)
         return (os.path.join(dirpath, fpath) for fpath in os.listdir(dirpath))
+
+    def exists(self) -> bool:
+        """Whether the stream points to an existing resource."""
+        return pathlib.Path(self.uri).exists()

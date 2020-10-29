@@ -77,6 +77,38 @@ with open_stream("s3://bucket/foobar.csv", "r") as csv:
 
 ```
 
+## TempStream
+
+`TempStream` is a stream can functions like a virtual file system in memory.
+
+```py
+import gc
+
+from iotoolz import Stream, exists, glob, iter_dir
+
+# this stream can be garbage collected
+Stream("tmp://foo/bar/data.txt", data="foobar")
+
+# True if not gc yet, False if already gc
+exists("tmp://foo/bar/data.txt")
+
+# force gc
+gc.collect()
+# will not exist
+exists("tmp://foo/bar/data.txt")
+
+# create temp stream with strong ref (hence will not be gc)
+s1 = Stream("tmp://foo/bar/data.txt", data="foobar")
+s2 = Stream("tmp://foo/example.txt", data="...")
+
+# returns s1 and s2
+iter_dir("tmp://foo/")
+
+# returns s1 only
+glob("tmp://foo/bar/*.txt")
+
+```
+
 ## Stream-like operations
 
 `Stream` is an alias of `open_stream`, both methods return a concrete `AbcStream` object.
@@ -120,11 +152,12 @@ stream.close() # close the stream
 
 ## Path-like operations
 
-`mkdir`, `iter_dir` and `glob` are path-like methods that are available to the
+`exists`, `mkdir`, `iter_dir` and `glob` are path-like methods that are available to the
 stream object. These methods mimics their equivalent in `pathlib.Path` when appropriate.
 
 | method     | supported streams                          | desc                                                            |
 | ---------- | ------------------------------------------ | --------------------------------------------------------------- |
+| `exists`   | `FileStream`, `HttpStream`, `S3Stream`     | check if a stream points to an existing resource.               |
 | `mkdir`    | `FileStream`                               | create a directory.                                             |
 | `iter_dir` | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory.                      |
 | `glob`     | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory that match a pattern. |
@@ -132,7 +165,7 @@ stream object. These methods mimics their equivalent in `pathlib.Path` when appr
 ```py
 import itertools
 
-from iotoolz import Stream, mkdir, iter_dir, glob
+from iotoolz import Stream, mkdir, iter_dir, glob, exists
 
 # similar to 'mkdir -p'
 mkdir("path/to/folder", parents=True, exist_ok=True)
@@ -144,8 +177,10 @@ for stream in Stream("s3://bucket/prefix/").iter_dir():
     print(stream.uri)
 
 # find s3 objects with a specific pattern
-glob("s3://bucket/prefix/", "*.txt")
+glob("s3://bucket/prefix/*txt")
 for stream in Stream("s3://bucket/prefix/").glob("*.txt"):
     print(stream.uri)
 
+# exists
+exists("s3://bucket/prefix/foo.txt")
 ```

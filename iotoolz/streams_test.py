@@ -5,6 +5,7 @@ import requests_mock
 
 from iotoolz.streams import (
     Stream,
+    exists,
     glob,
     iter_dir,
     mkdir,
@@ -43,12 +44,14 @@ def test_streams(tmpdir):
     assert Stream(filepath).read() == "hello world\nline2"
 
     # list files
+    assert not exists(dirpath / "example.py")
     with open_stream(dirpath / "example.py", "w") as stream:
         stream.write("hello")
+    assert exists(dirpath / "example.py")
     assert list(iter_dir(dirpath)) == [Stream(filepath), Stream(dirpath / "example.py")]
 
     # glob files
-    assert list(glob(dirpath, "*.py")) == [Stream(dirpath / "example.py")]
+    assert list(glob(dirpath / "*.py")) == [Stream(dirpath / "example.py")]
 
 
 def test_buffer_rollover(tmpdir):
@@ -85,3 +88,20 @@ def test_open_http_stream():
         stream = Stream(url, mode="rb")
         assert stream.read() == expected_bin
         assert rmock.request_history[0].verify is False
+
+
+def test_temp_stream():
+
+    stream1 = Stream("tmp://foo/bar.txt", "rw", data="foo")
+    stream1.seek(0, whence=2)
+    stream1.write(" bar")
+
+    stream2 = Stream("tmp://foo/bar.txt")
+    assert stream1 == stream2
+    assert stream1.tell() == stream2.tell()
+    stream2.seek(0)
+    assert stream2.read() == "foo bar"
+
+    stream3 = Stream("tmp://foo/bar.csv")
+
+    assert list(glob("tmp://foo/*.csv")) == [stream3]
