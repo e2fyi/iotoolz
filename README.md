@@ -49,14 +49,12 @@ Available extras:
 
 ## Quickstart
 
-### iotoolz.streams
-
 The helper object `iotoolz.streams.stream_factory` is a default singleton of
 `iotoolz.streams.Streams` provided to support most of the common use cases.
 
-`iotoolz.streams.open_stream` is a util method provided by the singleton helper to create
-a stream object. This method accepts the same arguments as python's `open` method with
-the following additional parameters:
+`iotoolz.streams.open_stream` (alias `iotoolz.streams.Stream`) and is a util method
+provided by the singleton helper to create a stream object. This method accepts the same
+arguments as python's `open` method with the following additional parameters:
 
 - `data`: optional str or bytes that will be passed into the stream
 - `fileobj`: optional file-like object which will be copied into the stream
@@ -64,51 +62,141 @@ the following additional parameters:
 - `inmem_size`: determines how much memory to allocate to the stream before rolling over to local file system. Defaults to no limits (may result in MemoryError).
 - `schema_kwargs`: optional mapping of schemas to their default kwargs.
 
+### Basic Setup
+
 ```py
-from iotoolz.streams import open_stream
-
-default_schema_kwargs = {
-    "https": {"verify": False}  # pass to requests - i.e. don't verify ssl
-}
-
-# this will return a stream that reads from the site
-http_google = open_stream(
-    "https://google.com",
-    mode="r",
-    schema_kwargs=default_schema_kwargs
+from iotoolz.streams import (
+    set_schema_kwargs,
+    set_buffer_rollover_size,
 )
 
-html = http_google.read()
-content_type = http_google.content_type
-encoding = http_google.encoding
+# do not verify the ssl cert for HttpStream (via requests)
+set_schema_kwargs("https", verify=False)
 
-# this will write to the https endpoint using the POST method (default is PUT)
-with open_stream("https://foo/bar", mode="wb", use_post=True) as stream:
+# use a custom client for S3Stream (via boto3)
+set_schema_kwargs(
+    "s3",
+    {
+        "client": boto3.client(
+            "s3",
+            aws_access_key_id=ACCESS_KEY,
+            aws_secret_access_key=SECRET_KEY,
+            aws_session_token=SESSION_TOKEN,
+        )
+    },
+)
+
+# buffer will rollover to disk if the data is more than 100 MB
+# (default is everything is in-memory - may result in memory error)
+set_buffer_rollover_size(10**8)
+```
+
+### Opening streams
+
+You can open any stream just like python's built-in `open` method.
+
+```py
+import pandas
+
+from iotoolz import open_stream
+
+# print line by line some data in from a https endpoint
+# and do not verify the ssl cert of the https endpoint
+with open_stream(
+    "https://foo/bar/data.txt",
+    mode="r",
+    schema_kwargs={"https": {"verify": False}}
+) as stream:
+    for line in stream:
+        print(line)
+
+# POST some binary content to a http endpoint (default is PUT)
+with open_stream("https://foo.bar/api/data", "wb", use_post=True) as stream:
     stream.write(b"hello world")
 
-
-# this will write to a local path
-# save will write the current content to the local file
-foo_txt = open_stream(
-    "path/to/foo.txt",
-    mode="w",
-    content_type="text/plain",
-    encoding="utf-8",
-    data="foo bar",
-).save()
-
-# go to the end of the buffer
-foo_txt.seek(0, whence=2)
-# append more data
-foo_txt.write("\nnext line")
-# save and close the data
-foo_txt.close()
-
-
-# save a local file to S3
-with open_stream("key.txt", "rb") as csv_source,
-     open_stream("s3://bucket/folder/key.txt", "wb") as s3_sink:
+# Copying a local file to s3
+with open_stream("path/to/data.csv", "r") as csv_source,
+     open_stream("s3://bucket/foobar.txt?StorageClass=STANDARD", "w") as s3_sink:
+    # pipe content in csv_source to tmpsink
     csv_source.pipe(s3_sink)
+
+# load to pandas dataframe from s3 fileobj
+with open_stream("s3://bucket/foobar.csv", "r") as csv:
+    df = pd.read_csv(csv)
+
+```
+
+## Stream-like operations
+
+`Stream` is an alias of `open_stream`, both methods return a concrete `AbcStream` object.
+You can treat the object as both a "file-like" and "stream-like" object - i.e. you can
+read, write, seek, flush, close the object.
+
+> NOTE
+>
+> By default, the underlying buffer is in-memory. You can enable rollover to disk by
+> passing the `inmem_size` arg to the method, or update the default `inmem_size` value
+> with the `iotoolz.streams.set_buffer_rollover_size` method.
+
+```py
+from iotoolz import open_stream, Stream, set_buffer_rollover_size
+
+# `Stream` is an alias of `open_stream`
+assert open_stream == Stream
+
+# rollover to disk if data is over 100 MB
+set_buffer_rollover_size(10**8)
+
+# you can overwrite the default kwargs here also
+stream = Stream(
+    "path/to/data.txt",
+    mode="rw",  # you can both read and write to a stream
+)
+# stream is lazily evaluated, nothing will be buffered until you call some methods
+# that requires the data
+data = stream.read()
+# will attempt to provide encoding and content_type if not provided when opening the stream
+print(stream.encoding)
+print(stream.content_type)
+# stream has the same interface as an IO object - i.e. u can seek, flush, close, etc
+stream.seek(5)  # go to offset 5 from start of buffer
+stream.write("replace with this text")
+stream.seek(0, whence=2)  # go to end of buffer
+stream.write("additional text after original eof")  # continue writing to the end of the buffer
+stream.save()  # flush save the entire buffer to the same dst location
+stream.close() # close the stream
+```
+
+## Path-like operations
+
+`mkdir`, `iter_dir` and `glob` are path-like methods that are available to the
+stream object. These methods mimics their equivalent in `pathlib.Path` when appropriate.
+
+| method     | supported streams                          | desc                                                            |
+| ---------- | ------------------------------------------ | --------------------------------------------------------------- |
+| `mkdir`    | `FileStream`                               | create a directory.                                             |
+| `iter_dir` | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory.                      |
+| `glob`     | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory that match a pattern. |
+
+```py
+import itertools
+
+from iotoolz import Stream, mkdir, iter_dir, glob
+
+# similar to 'mkdir -p'
+mkdir("path/to/folder", parents=True, exist_ok=True)
+Stream("path/to/folder").mkdir(parents=True, exist_ok=True)
+
+# list object in an s3 bucket
+iter_dir("s3://bucket/prefix/")
+for stream in Stream("s3://bucket/prefix/").iter_dir():
+    print(stream.uri)
+
+# find s3 objects with a specific pattern
+glob("s3://bucket/prefix/", "*.txt")
+for stream in Stream("s3://bucket/prefix/").glob("*.txt"):
+    print(stream.uri)
+
 ```
 
 ## Piping streams

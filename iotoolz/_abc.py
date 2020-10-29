@@ -2,11 +2,15 @@
 This module provides the abstract class for a generic IOStream.
 """
 import abc
+import atexit
 import dataclasses
+import fnmatch
 import functools
 import io
 import os.path
+import signal
 import tempfile
+import weakref
 from typing import (
     IO,
     Any,
@@ -108,15 +112,26 @@ class AbcStream(
         self._inmem_size = inmem_size
         self._kwargs = kwargs
 
-        self._file: IO[bytes] = tempfile.SpooledTemporaryFile(
-            max_size=inmem_size or self.INMEM_SIZE,
-            mode="w+b",  # always binary mode
-            buffering=buffering,
-            encoding=encoding,
-            newline=newline,
-        )
+        self._buffer: Optional[IO[bytes]] = None
         self._info: Optional[StreamInfo] = None
         self._pipes: List[Tuple[str, IO]] = []
+
+        _teardown = weakref.WeakMethod(self._teardown)  # type: ignore
+        self._sigterm_handler = signal.signal(signal.SIGTERM, _teardown)  # type: ignore
+        self._sigint_handler = signal.signal(signal.SIGINT, _teardown)  # type: ignore
+        self._sigquit_handler = signal.signal(signal.SIGQUIT, _teardown)  # type: ignore
+        self._stream_params = {
+            "mode": mode,
+            "buffering": buffering,
+            "encoding": encoding,
+            "newline": newline,
+            "content_type": content_type,
+            "inmem_size": inmem_size,
+            "delimiter": delimiter,
+            "chunk_size": chunk_size,
+            **kwargs,
+        }
+        atexit.register(weakref.WeakMethod(self._cleanup))  # type: ignore
 
     @abc.abstractmethod
     def read_to_iterable_(
@@ -181,6 +196,49 @@ class AbcStream(
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        """
+        This abstract method should mimics pathlib.mkdir method for different streams.
+
+        Create a new directory at this given path. If mode is given, it is combined with
+        the process’ umask value to determine the file mode and access flags. If the path
+        already exists, FileExistsError is raised.
+
+        If parents is true, any missing parents of this path are created as needed; they
+        are created with the default permissions without taking mode into account
+        (mimicking the POSIX mkdir -p command).
+
+        If parents is false (the default), a missing parent raises FileNotFoundError.
+
+        If exist_ok is false (the default), FileExistsError is raised if the target
+        directory already exists.
+
+        If exist_ok is true, FileExistsError exceptions will be ignored (same behavior
+        as the POSIX mkdir -p command), but only if the last path component is not an
+        existing non-directory file.
+
+        Args:
+            mode (int, optional): mask mode. Defaults to 0o777.
+            parents (bool, optional): If true, creates any parents if required. Defaults to False.
+            exist_ok (bool, optional): If true, will not raise exception if dir already exists. Defaults to False.
+
+        Raises:
+            NotImplementedError: [description]
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def iter_dir_(self) -> Iterable[str]:
+        """
+        If the current stream is a directory, this method should yield uri in
+        the directory. Otherwise, it should yield other uri in the same
+        directory (or level) as the current stream.
+        """
+        raise NotImplementedError
+
     @classmethod
     def open(
         cls,
@@ -223,6 +281,11 @@ class AbcStream(
             chunk_size=chunk_size,
             **kwargs,
         )
+
+    @property
+    def _file(self) -> IO[bytes]:
+        """Tempfile object for the stream."""
+        return self._buffer or self._clear_buffer()
 
     @property
     def closed(self) -> bool:
@@ -506,9 +569,8 @@ class AbcStream(
             AbcStream: current stream object.
         """
         if not self._info or force:
-            self._file = self._tempfile(new=True)
             iter_bytes, info = self.read_to_iterable_(
-                self.uri, self._chunk_size, self._file, **self._kwargs
+                self.uri, self._chunk_size, self._clear_buffer(), **self._kwargs
             )
             self._update_info(info)
             iter_bytes = iter_bytes or []
@@ -521,6 +583,27 @@ class AbcStream(
                         stream.read(1024)
                     )
         return self
+
+    def clone(self, uri: str = None, **kwargs) -> "AbcStream":
+        """
+        Creates a new stream with the same init args as the current stream.
+
+        Returns:
+            AbcStream: new stream with same init args.
+        """
+        kwargs = {**self._stream_params, **kwargs}
+        return type(self)(uri or self.uri, **kwargs)
+
+    def iter_dir(self) -> Iterator["AbcStream"]:
+        """
+        If the current stream is a directory, this method will yield all Stream
+        in the directory. Otherwise, it should yield all Stream in the same
+        directory (or level) as the current stream.
+        """
+        # do not copy the content_type and encoding
+        return (
+            self.clone(uri, content_type="", encoding=None) for uri in self.iter_dir_()
+        )
 
     def iter_bytes(self) -> Iterator[bytes]:
         """
@@ -535,7 +618,7 @@ class AbcStream(
                 self.uri, self._chunk_size, self._file, **self._kwargs
             )
             self._update_info(info)
-            self._file = self._tempfile(new=True)
+            self._clear_buffer()
             if iter_bytes:
                 for chunk in iter_bytes:
                     self._write(chunk)
@@ -596,6 +679,26 @@ class AbcStream(
             "sink for pipe must be a filelike object - i.e. has write method"
         )
 
+    def glob(self, pattern: str = "*") -> Iterator["AbcStream"]:
+        """
+        Glob the given relative pattern in the directory represented by this path,
+        yielding all matching files (of any kind).
+
+        Args:
+            pattern (str, optional): unix shell style pattern. Defaults to "*".
+
+        Returns:
+            Iterator["AbcStream"]: iterator of streams relative to current stream
+
+        Yields:
+            AbcStream: stream object
+        """
+        return (
+            stream
+            for stream in self.iter_dir()
+            if fnmatch.fnmatch(os.path.basename(stream.uri), pattern)
+        )
+
     def _emit(self, chunk: bytes, pipes: List[Tuple[str, IO]]):
         for encoding, sink in pipes:
             data = chunk.decode(self.encoding or encoding) if encoding else chunk
@@ -619,7 +722,7 @@ class AbcStream(
 
     def __enter__(self) -> "AbcStream":
         if "w" in self.mode:
-            self._file = self._tempfile(new=True)
+            self._clear_buffer()
             return self
 
         if "a" in self.mode:
@@ -639,29 +742,38 @@ class AbcStream(
             self._emit(chunk, self._pipes)
         return ret
 
-    def _tempfile(self, new: bool = False) -> IO[bytes]:
-        if not new and self._file:
-            return self._file
+    def _clear_buffer(self) -> IO[bytes]:
+        if self._buffer and not self._buffer.closed:
+            self._buffer.flush()
+            self._buffer.close()
 
-        if self._file:
-            self._file.close()
-
-        return tempfile.SpooledTemporaryFile(
+        self._buffer = tempfile.SpooledTemporaryFile(
             max_size=self._inmem_size or self.INMEM_SIZE,
             mode="w+b",  # always binary mode
             buffering=self.buffering,
             encoding=self.encoding,
             newline=self.newline,
         )
+        return self._buffer
 
     def _decode(
         self, iter_bytes: Iterable[bytes], encoding: str = None
     ) -> Iterable[str]:
         return (data.decode(encoding or self.encoding) for data in iter_bytes)
 
+    def _teardown(self, signum: signal.Signals, frame):
+        self._cleanup()
+        if signum == signal.SIGTERM and callable(self._sigterm_handler):
+            self._sigterm_handler(signum, frame)
+        elif signum == signal.SIGINT and callable(self._sigint_handler):
+            self._sigint_handler(signum, frame)
+        elif signum == signal.SIGQUIT and callable(self._sigquit_handler):
+            self._sigquit_handler(signum, frame)
+
     def _cleanup(self):
         self._info = None
-        if self._file:
+        if self._file and not self._file.closed:
+            self._file.flush()
             self._file.close()
 
     def _update_info(self, info: Optional[StreamInfo]):
@@ -686,8 +798,14 @@ class AbcStream(
 
     def __hash__(self):
         if self._info and self._info.etag:
-            return hash(self._info.etag)
+            identifier = self.uri + self._info.etag
+            return hash(identifier.encode())
         return hash(self.uri.encode())
 
+    def __eq__(self, obj):
+        if isinstance(obj, AbcStream):
+            return hash(obj) == hash(self)
+        return False
 
-# AbcStream.register(io.IOBase)
+
+AbcStream.register(io.IOBase)

@@ -72,3 +72,13 @@ class HttpStream(AbcStream):
         )
         resp.raise_for_status()
         return StreamInfo(content_type=self.content_type, encoding=self.encoding)
+
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        """This method does nothing as the actual HTTP call will handle any folder creation as part of the request."""
+        ...
+
+    def iter_dir_(self) -> Iterable[str]:
+        """This method does nothing."""
+        return ()

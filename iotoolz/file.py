@@ -62,12 +62,47 @@ class FileStream(AbcStream):
         self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         os.makedirs(os.path.dirname(uri), exist_ok=True)
+        mode = self.mode.replace("r", "")
+        if "b" not in mode:
+            mode += "b"
         with open(
             self.uri,
-            mode=self.mode,
+            mode=mode,
             buffering=self.buffering,
-            encoding=self.encoding if "b" not in self.mode else None,
+            encoding=None,
             newline=self.newline,
         ) as stream:
             shutil.copyfileobj(fileobj, stream)
         return StreamInfo()
+
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        """
+        Create a new directory at this given path. If mode is given, it is combined with
+        the process’ umask value to determine the file mode and access flags. If the path
+        already exists, FileExistsError is raised.
+
+        If parents is true, any missing parents of this path are created as needed; they
+        are created with the default permissions without taking mode into account
+        (mimicking the POSIX mkdir -p command).
+
+        If parents is false (the default), a missing parent raises FileNotFoundError.
+
+        If exist_ok is false (the default), FileExistsError is raised if the target
+        directory already exists.
+
+        If exist_ok is true, FileExistsError exceptions will be ignored (same behavior
+        as the POSIX mkdir -p command), but only if the last path component is not an
+        existing non-directory file.
+
+        Args:
+            mode (int, optional): mask mode. Defaults to 0o777.
+            parents (bool, optional): If true, creates any parents if required. Defaults to False.
+            exist_ok (bool, optional): If true, will not raise exception if dir already exists. Defaults to False.
+        """
+        pathlib.Path(self.uri).mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
+
+    def iter_dir_(self) -> Iterable[str]:
+        dirpath = self.uri if os.path.isdir(self.uri) else os.path.dirname(self.uri)
+        return (os.path.join(dirpath, fpath) for fpath in os.listdir(dirpath))

@@ -6,20 +6,28 @@ You can create your own custom `Stream` class by inheriting from the abstract cl
 The abstract class `iotoolz.AbcStream` requires the following methods to be implemented:
 
 ```py
-# This is the material method to get the data from the actual IO resource and return
+# This is the abstract method to get the data from the actual IO resource and return
 # a Tuple with an Iterable to the data and the corresponding StreamInfo.
 def read_to_iterable_(
     self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
 ) -> Tuple[Iterable[bytes], StreamInfo]:
     ...
 
-# This is the material method to write the data to the actual IO resource.
+# This is the abstract method to write the data to the actual IO resource.
 # This method is only triggered when "close" or "save" is called.
 # You should use the "fileobj" parameter (a file-like obj) to write the current data to
 # the actual IO resource.
 def write_from_fileobj_(
     self, uri: str, fileobj: IO[bytes], size: int, **kwargs
 ) -> StreamInfo:
+    ...
+
+
+# This is the abstract method to list the streams in the dir-like path.
+# If the current stream is a directory, this method should yield uri in
+# the directory. Otherwise, it should yield other uri in the same
+# directory (or level) as the current stream.
+def iter_dir_(self) -> Iterable[str]:
     ...
 ```
 
@@ -63,6 +71,16 @@ class HttpStream(AbcStream):
         resp.raise_for_status()
         return StreamInfo()
 
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        """This method does nothing as the actual HTTP call will handle any folder
+        creation as part of the request."""
+        ...
+
+    def iter_dir_(self) -> Iterable[str]:
+        """This method does nothing."""
+        return ()
 ```
 
 ## Example: S3Stream
@@ -76,7 +94,7 @@ the data (i.e. `stream.read()`).
 > to the buffer.
 
 ```py
-# NOTE this not the full implementation
+# NOTE this not the actual implementation
 class S3Stream(AbcStream):
     supported_schemas = {"s3", "s3a", "s3n"}
 
@@ -114,10 +132,21 @@ class S3Stream(AbcStream):
             Config=self._transfer_config,
         )
         return StreamInfo()
+
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        """This method does nothing as you do not need to create a 'folder' for an
+        object store."""
+        ...
+
+    def iter_dir_(self) -> Iterable[str]:
+        ...
+        # bunch of codes that to list objs based on prefix
+
 ```
 
-
-## Example: Register you custom Stream
+## Example: Register your own custom Stream
 
 ```py
 from iotoolz import AbcStream, StreamInfo
@@ -125,20 +154,32 @@ from iotoolz.streams import register_stream, open_stream
 
 # create your custom stream
 class SomeStream(AbcStream):
-    supported_schemes = {"some"}
+    supported_schemas = {"some"}
 
     def read_to_iterable_(
         self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
+        # does nothing
         return [], StreamInfo()
 
     def write_from_fileobj_(
         self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
+        # does nothing
         return StreamInfo()
 
+    def mkdir(
+        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+    ):
+        # does nothing
+        ...
+
+    def iter_dir_(self) -> Iterable[str]:
+        # does nothing
+        return ()
+
 # register it to the default stream factory
-register_stream(SomeStream, StreamInfo.supported_schemes)
+register_stream(SomeStream, StreamInfo.supported_schemas)
 
 # use the remote resource like a normal file object
 with open_stream("some://foo/bar.txt", "r") as stream:

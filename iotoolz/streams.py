@@ -5,7 +5,7 @@ import functools
 import io
 import pathlib
 import urllib.parse
-from typing import Any, Dict, Iterable, List, Type, Union
+from typing import Any, Dict, Iterable, Iterator, List, Type, Union
 
 from iotoolz._abc import AbcStream
 from iotoolz.extensions import S3Stream
@@ -23,6 +23,8 @@ class Streams:
     Helper class to open streams with the corresponding AbcStream implementation
     based on the uri schema.
     """
+
+    INMEM_SIZE: int = 0
 
     def __init__(self, *stream_types: AbcStreamType):
         """
@@ -105,6 +107,7 @@ class Streams:
         delimiter: Union[str, bytes] = None,
         chunk_size: int = io.DEFAULT_BUFFER_SIZE,
         schema_kwargs: dict = None,
+        **extra_kwargs,
     ) -> AbcStream:
         """
         Open an appropriate registered stream based on the uri schema.
@@ -156,11 +159,12 @@ class Streams:
         Returns:
             AbcStream: concrete AbcStream based on the uri schema.
         """
+        if isinstance(uri, pathlib.Path):
+            schema = "file"
+
+        print(schema)
         if not schema:
-            if isinstance(uri, pathlib.Path):
-                schema = "file"
-            else:
-                schema, *_ = urllib.parse.urlsplit(uri)
+            schema, *_ = urllib.parse.urlsplit(str(uri))
 
         # fallback to file system
         if schema not in self._schema2stream:
@@ -170,6 +174,7 @@ class Streams:
         kwargs = {
             **self._schema2kwargs.get(schema, {}),
             **schema_kwargs.get(schema, {}),
+            **extra_kwargs,
         }
         stream = self._schema2stream[schema](
             str(uri),
@@ -178,7 +183,7 @@ class Streams:
             encoding=encoding,
             newline=newline,
             content_type=content_type,
-            inmem_size=inmem_size,
+            inmem_size=inmem_size or self.INMEM_SIZE,
             delimiter=delimiter,
             chunk_size=chunk_size,
             **kwargs,
@@ -213,8 +218,90 @@ class Streams:
 
         return stream
 
+    def mkdir(
+        self,
+        uri: Union[pathlib.Path, str],
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
+    ):
+        """
+        Create a new directory at this given path. If mode is given, it is combined with
+        the process’ umask value to determine the file mode and access flags. If the path
+        already exists, FileExistsError is raised.
+
+        If parents is true, any missing parents of this path are created as needed; they
+        are created with the default permissions without taking mode into account
+        (mimicking the POSIX mkdir -p command).
+
+        If parents is false (the default), a missing parent raises FileNotFoundError.
+
+        If exist_ok is false (the default), FileExistsError is raised if the target
+        directory already exists.
+
+        If exist_ok is true, FileExistsError exceptions will be ignored (same behavior
+        as the POSIX mkdir -p command), but only if the last path component is not an
+        existing non-directory file.
+
+        Args:
+            uri (Union[pathlib.Path, str]): uri to create dir.
+            mode (int, optional): mask mode. Defaults to 0o777.
+            parents (bool, optional): If true, creates any parents if required. Defaults to False.
+            exist_ok (bool, optional): If true, will not raise exception if dir already exists. Defaults to False.
+        """
+        return self.open(uri).mkdir(mode, parents, exist_ok)
+
+    def iter_dir(self, uri: Union[pathlib.Path, str]) -> Iterator[AbcStream]:
+        """
+        If a directory, yields stream in the directory. Otherwise, yield all streams in
+        the same directory as the provided uri.
+
+        Args:
+            uri (Union[pathlib.Path, str]): uri to list.
+
+        Returns:
+            Iterator["AbcStream"]: iterator of streams that matches the pattern.
+
+        Yields:
+            AbcStream: stream object
+        """
+        return self.open(uri).iter_dir()
+
+    def glob(
+        self, uri: Union[pathlib.Path, str], pattern: str = "*"
+    ) -> Iterator[AbcStream]:
+        """
+        Yield streams that matches the provided scheme and pattern.
+
+        Args:
+            uri (Union[pathlib.Path, str]): base uri to glob.
+            pattern (str, optional): unix shell style pattern. Defaults to "*".
+
+        Returns:
+            Iterator["AbcStream"]: iterator of streams that matches the pattern.
+
+        Yields:
+            AbcStream: stream object
+        """
+        return self.open(uri).glob(pattern)
+
+    @classmethod
+    def set_buffer_rollover_size(cls, value: int):
+        """
+        Set the max size of the buffer before the data is rollover to disk.
+
+        Args:
+            value (int): size before rollover
+        """
+        cls.INMEM_SIZE = value
+
 
 stream_factory = Streams(*DEFAULT_STREAMS)
 open_stream = stream_factory.open
+Stream = stream_factory.open
 register_stream = stream_factory.register
 set_schema_kwargs = stream_factory.set_schema_kwargs
+set_buffer_rollover_size = stream_factory.set_buffer_rollover_size
+mkdir = stream_factory.mkdir
+iter_dir = stream_factory.iter_dir
+glob = stream_factory.glob
