@@ -197,6 +197,11 @@ class AbcStream(
         raise NotImplementedError
 
     @abc.abstractmethod
+    def exists(self) -> bool:
+        """Whether the path points to an existing resource."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
     ):
@@ -266,6 +271,7 @@ class AbcStream(
             inmem_size (int, optional): max size before buffer rollover from mem to disk. Defaults to None (i.e. never - may raise MemoryError).
             delimiter (Union[str, bytes], optional): delimiter used for determining line boundaries. Defaults to None.
             chunk_size (int, optional): chunk size when iterating bytes stream. Defaults to io.DEFAULT_BUFFER_SIZE.
+            **kwargs: Additional keyword arguments to the stream (depends on implementation)
 
         Returns:
             AbcStream: new instance of AbcStream

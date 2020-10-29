@@ -176,7 +176,7 @@ class Streams:
             **schema_kwargs.get(schema, {}),
             **extra_kwargs,
         }
-        stream = self._schema2stream[schema](
+        stream = self._schema2stream[schema].open(
             str(uri),
             mode=mode,
             buffering=buffering,
@@ -267,9 +267,7 @@ class Streams:
         """
         return self.open(uri).iter_dir()
 
-    def glob(
-        self, uri: Union[pathlib.Path, str], pattern: str = "*"
-    ) -> Iterator[AbcStream]:
+    def glob(self, uri: Union[pathlib.Path, str],) -> Iterator[AbcStream]:
         """
         Yield streams that matches the provided scheme and pattern.
 
@@ -283,7 +281,13 @@ class Streams:
         Yields:
             AbcStream: stream object
         """
-        return self.open(uri).glob(pattern)
+        uri_ = str(uri)
+        first_star = uri_.index("*")
+        return self.open(uri_[0:first_star]).glob(uri_[first_star:])
+
+    def exists(self, uri: Union[pathlib.Path, str]) -> bool:
+        """Whether a stream points to an existing resource."""
+        return self.open(uri).exists()
 
     @classmethod
     def set_buffer_rollover_size(cls, value: int):
@@ -305,3 +309,4 @@ set_buffer_rollover_size = stream_factory.set_buffer_rollover_size
 mkdir = stream_factory.mkdir
 iter_dir = stream_factory.iter_dir
 glob = stream_factory.glob
+exists = stream_factory.exists

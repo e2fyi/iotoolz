@@ -29,6 +29,7 @@ def test_s3stream(s3):
         "Metadata": {"meta-key": "meta-value"},
     }
 
+    assert not S3Stream("s3://somebucket/foo/bar.txt").exists()
     with S3Stream(
         "s3://somebucket/foo/bar.txt?StorageClass=REDUCED_REDUNDANCY",
         mode="w",
@@ -36,6 +37,7 @@ def test_s3stream(s3):
     ) as stream:
         stream.write("hello world")
 
+    assert S3Stream("s3://somebucket/foo/bar.txt").exists()
     with S3Stream("s3://somebucket/foo/bar.txt", mode="r") as stream:
         assert stream.read() == "hello world"
         assert stream.info.extras["Metadata"] == {"meta-key": "meta-value"}

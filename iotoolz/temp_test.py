@@ -91,11 +91,15 @@ def test_tempstream_iter_dir():
 
 def test_tempstream_weakref():
 
-    t1 = TempStream("tmp://foo/bar/")
+    t1 = TempStream("tmp://foo/bar/", data="foo bar")
     TempStream("tmp://foo/bar/data.txt", data="hello world1")
     gc.collect()
 
     assert list(t1.iter_dir()) == [t1]
+
+    t2 = TempStream.open("tmp://foo/bar/")
+    assert t1 == t2
+    assert t2.read() == "foo bar"
 
 
 def test_pipe_basic():
