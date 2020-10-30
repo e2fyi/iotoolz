@@ -33,11 +33,19 @@ def test_s3stream(s3):
     with S3Stream(
         "s3://somebucket/foo/bar.txt?StorageClass=REDUCED_REDUNDANCY",
         mode="w",
+        content_type="text/plain",
+        encoding="utf-8",
         **extra_args
     ) as stream:
         stream.write("hello world")
 
     assert S3Stream("s3://somebucket/foo/bar.txt").exists()
+
+    stats = S3Stream("s3://somebucket/foo/bar.txt").stats()
+    assert stats.name == "bar.txt"
+    assert stats.content_type == "text/plain"
+    assert stats.encoding == "utf-8"
+
     with S3Stream("s3://somebucket/foo/bar.txt", mode="r") as stream:
         assert stream.read() == "hello world"
         assert stream.info.extras["Metadata"] == {"meta-key": "meta-value"}

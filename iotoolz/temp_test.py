@@ -14,7 +14,7 @@ def test_tempstream_default():
     url = "tmp://foo.bar"
     expected_str = "hello\nworld"
 
-    stream = TempStream(url, expected_str, mode="wb")
+    stream = TempStream(url, data=expected_str, mode="wb")
     assert stream.mode == "r"
     assert stream.read() == expected_str
 

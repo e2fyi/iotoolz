@@ -60,8 +60,10 @@ class TempStream(AbcStream):
             etag,
             **kwargs,
         )
-        self._info = StreamInfo(content_type=content_type, encoding=encoding or "utf-8")
+        self.set_info(content_type=content_type, encoding=encoding or "utf-8")
         self._initial_data = None
+        self._has_read = True  # nothing to read
+        self._has_stats = True
 
         if data:
             if "r" not in self.mode:
@@ -70,23 +72,23 @@ class TempStream(AbcStream):
                     [char for char in self.mode if char not in {"w", "a"}]
                 )
             if isinstance(data, (bytes, bytearray)):
-                self._content_type = content_type or guess_content_type_from_buffer(
-                    data
-                )
-                self._encoding = encoding or guess_encoding([data])[0]
+                content_type = content_type or guess_content_type_from_buffer(data)
+                encoding = encoding or guess_encoding([data])[0]
                 if "b" not in self.mode:
                     self.mode += "b"
+                self.set_info(content_type=content_type, encoding=encoding)
                 self._file.write(data)
             elif isinstance(data, str):
                 self.mode = "".join([char for char in self.mode if char != "b"])
-                self._encoding = encoding or "utf-8"
-                self._content_type = content_type or guess_content_type_from_buffer(
+                encoding = encoding or "utf-8"
+                content_type = content_type or guess_content_type_from_buffer(
                     data.encode(encoding or "utf-8")
                 )
+                self.set_info(content_type=content_type, encoding=encoding)
                 self._file.write(data.encode(encoding or "utf-8"))
             else:
                 raise TypeError("data must be of type bytes or str")
-            self.seek(0)
+            self._file.seek(0)
 
         # register to weakdict
         _TEMPSTREAMS[self.uri] = self
@@ -101,18 +103,21 @@ class TempStream(AbcStream):
     ) -> StreamInfo:
         return StreamInfo()
 
+    def stats_(self) -> StreamInfo:
+        return StreamInfo()
+
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
     ):
         """This method does nothing as you do not need to create a folder for an in-memory buffer."""
         ...
 
-    def iter_dir_(self) -> Iterable[str]:
+    def iter_dir_(self) -> Iterable[StreamInfo]:
         dirpath = self.uri if self.uri.endswith("/") else os.path.dirname(self.uri)
 
         return (
-            uri
-            for uri in _TEMPSTREAMS
+            stream.info
+            for uri, stream in _TEMPSTREAMS.items()
             if uri.startswith(dirpath)
             if _TEMPSTREAMS.get(uri)
         )
@@ -123,8 +128,14 @@ class TempStream(AbcStream):
         in the directory. Otherwise, it should yield all Stream in the same
         directory (or level) as the current stream.
         """
-        whitelist = set(self.iter_dir_())
-        return (value for key, value in _TEMPSTREAMS.items() if key in whitelist)
+        dirpath = self.uri if self.uri.endswith("/") else os.path.dirname(self.uri)
+
+        return (
+            stream
+            for uri, stream in _TEMPSTREAMS.items()
+            if uri.startswith(dirpath)
+            if _TEMPSTREAMS.get(uri)
+        )
 
     def exists(self) -> bool:
         """TempStream will always exist."""

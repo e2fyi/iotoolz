@@ -4,9 +4,11 @@ This module provides the abstract class for a generic IOStream.
 import abc
 import atexit
 import dataclasses
+import datetime
 import fnmatch
 import functools
 import io
+import logging
 import os.path
 import signal
 import tempfile
@@ -25,9 +27,24 @@ from typing import (
     Union,
 )
 
-from iotoolz.utils import guess_content_type_from_buffer, guess_encoding, peek_stream
+from iotoolz.utils import (
+    guess_content_type_from_buffer,
+    guess_encoding,
+    guess_filename,
+    peek_stream,
+)
 
 T = TypeVar("T")
+
+
+def _set_read_flag(method: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(method)
+    def _wrapped_set_read_flag(self: "AbcStream", *args, **kwargs) -> Any:
+        ret = method(self, *args, **kwargs)
+        self._has_read = True  # pylint: disable=protected-access
+        return ret
+
+    return _wrapped_set_read_flag
 
 
 def need_sync(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -55,10 +72,30 @@ class StreamInfo:
     dataclass to wrap around some basic info about the stream.
     """
 
+    uri: str = ""
+    name: str = ""
     content_type: Optional[str] = ""
     encoding: Optional[str] = ""
     etag: Optional[str] = ""
+    last_modified: Optional[datetime.datetime] = None
     extras: dict = dataclasses.field(default_factory=dict)
+
+
+def merge_streaminfo(info1: StreamInfo, info2: StreamInfo) -> StreamInfo:
+    return StreamInfo(
+        uri=info2.uri or info1.uri,
+        name=info2.name or info1.name,
+        content_type=info2.content_type or info1.content_type,
+        encoding=info2.encoding or info1.encoding,
+        etag=info2.etag or info1.etag,
+        last_modified=info2.last_modified or info1.last_modified,
+        extras={**info1.extras, **info2.extras},
+    )
+
+
+def transform_streaminfo(info: StreamInfo, **kwargs) -> StreamInfo:
+    kwargs = {**dataclasses.asdict(info), **kwargs}
+    return StreamInfo(**kwargs)
 
 
 class AbcStream(
@@ -108,16 +145,21 @@ class AbcStream(
         self.buffering = buffering
         self.newline = newline
 
-        self._encoding = encoding or "utf-8"
-        self._content_type = content_type
-        self._etag = etag
         self._delimiter = delimiter
         self._chunk_size = chunk_size
         self._inmem_size = inmem_size
         self._kwargs = kwargs
 
+        self._has_read = False
+        self._has_stats = False
         self._buffer: Optional[IO[bytes]] = None
-        self._info: Optional[StreamInfo] = None
+        self._info = StreamInfo(
+            uri=uri,
+            name=guess_filename(uri),
+            content_type=content_type,
+            encoding=encoding or "utf-8",
+            etag=etag,
+        )
         self._pipes: List[Tuple[str, IO]] = []
 
         _teardown = weakref.WeakMethod(self._teardown)  # type: ignore
@@ -201,6 +243,11 @@ class AbcStream(
         raise NotImplementedError
 
     @abc.abstractmethod
+    def stats_(self) -> StreamInfo:
+        """Retrieve the StreamInfo."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def exists(self) -> bool:
         """Whether the path points to an existing resource."""
         raise NotImplementedError
@@ -240,10 +287,10 @@ class AbcStream(
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_dir_(self) -> Iterable[str]:
+    def iter_dir_(self) -> Iterable[StreamInfo]:
         """
-        If the current stream is a directory, this method should yield uri in
-        the directory. Otherwise, it should yield other uri in the same
+        If the current stream is a directory, this method should yield StreamInfo in
+        the directory. Otherwise, it should yield other StreamInfo in the same
         directory (or level) as the current stream.
         """
         raise NotImplementedError
@@ -313,13 +360,10 @@ class AbcStream(
         Returns:
             str: text encoding.
         """
-        if self._info:
-            return (
-                self._info.encoding
-                or self._encoding
-                or guess_encoding(self.iter_bytes())[0]
-            )
-        return self._encoding or guess_encoding(self.iter_bytes())[0]
+        if not self._info.encoding:
+            encoding = guess_encoding(self.iter_bytes())[0]
+            self.set_info(encoding=encoding)
+        return self._info.encoding or ""
 
     @property
     def content_type(self) -> str:
@@ -331,19 +375,16 @@ class AbcStream(
         Returns:
             str: string describing the media type of the resource.
         """
-        if self._info:
-            return self._info.content_type or self._content_type
-        if not self._content_type and self.size > 0:
+        if not self._info.content_type and self.size > 0:
             with peek_stream(self._file, peek=0) as stream:
-                return guess_content_type_from_buffer(stream.read(1024))  # type: ignore
-        return self._content_type
+                content_type = guess_content_type_from_buffer(stream.read(1024))  # type: ignore
+            self.set_info(content_type=content_type)
+        return self._info.content_type or ""
 
     @property
     def etag(self) -> str:
         """Identifier for a specific version of a resource."""
-        if self._info:
-            return self._info.etag or self._etag
-        return self._etag
+        return self._info.etag or ""
 
     @property
     def size(self) -> int:
@@ -361,9 +402,17 @@ class AbcStream(
         Returns:
             StreamInfo: StreamInfo object for the current stream.
         """
-        return self._info or StreamInfo(
-            encoding=self.encoding, content_type=self.content_type, etag=self.etag
-        )
+        if not self._has_stats and "r" in self.mode:
+            return self.stats()
+        return self._info
+
+    def stats(self) -> StreamInfo:
+        try:
+            self.set_info(self.stats_())
+            self._has_stats = True
+        except Exception as error:  # pylint: disable=broad-except
+            logging.warning(error)
+        return self._info
 
     @need_sync
     def peek(self, size: Optional[int] = None) -> bytes:
@@ -522,7 +571,7 @@ class AbcStream(
                 self.uri, self._file, self.size, **self._kwargs
             )
             if not self._file.closed:
-                self._update_info(info)
+                self.set_info(info)
                 # restore org pos
                 self.seek(pos)
 
@@ -539,6 +588,7 @@ class AbcStream(
         """
         try:
             self.save()
+            self._file.close()
             for _, sink in self._pipes:
                 sink.close()
         finally:
@@ -560,6 +610,13 @@ class AbcStream(
         self.seek(pos)
         return is_empty
 
+    def set_info(self, info: StreamInfo = None, **kwargs) -> "AbcStream":
+        if info:
+            self._info = merge_streaminfo(self._info, info)
+        if kwargs:
+            self._info = transform_streaminfo(self._info, **kwargs)
+        return self
+
     def set_encoding(self, encoding: str) -> "AbcStream":
         """
         Set and update the encoding to use to decode the binary data into text.
@@ -570,12 +627,22 @@ class AbcStream(
         Returns:
             AbcStream: current stream object.
         """
-        self._encoding = encoding
-        if self._info:
-            self._info.encoding = encoding
+        self.set_info(encoding=encoding)
         for _, sink in self._pipes:
             if hasattr(sink, "set_encoding"):
                 sink.set_encoding(encoding)  # type: ignore
+        return self
+
+    @_set_read_flag
+    def _read_to_buffer(self) -> "AbcStream":
+        iter_bytes, info = self.read_to_iterable_(
+            self.uri, self._chunk_size, self._clear_buffer(), **self._kwargs
+        )
+        self.set_info(info, encoding=self.encoding, content_type=self.content_type)
+        iter_bytes = iter_bytes or []
+        for chunk in iter_bytes:
+            self._write(chunk)
+        self._file.seek(0)
         return self
 
     def sync(self, force: bool = False) -> "AbcStream":
@@ -588,23 +655,11 @@ class AbcStream(
         Returns:
             AbcStream: current stream object.
         """
-        if not self._info or force:
-            iter_bytes, info = self.read_to_iterable_(
-                self.uri, self._chunk_size, self._clear_buffer(), **self._kwargs
-            )
-            self._update_info(info)
-            iter_bytes = iter_bytes or []
-            for chunk in iter_bytes:
-                self._write(chunk)
-            self._file.seek(0)
-            if not self._content_type:
-                with peek_stream(self._file, peek=0) as stream:
-                    self._content_type = guess_content_type_from_buffer(
-                        stream.read(1024)
-                    )
+        if not self._has_read or force:
+            self._read_to_buffer()
         return self
 
-    def clone(self, uri: str = None, **kwargs) -> "AbcStream":
+    def clone(self, uri: str = None, info: StreamInfo = None, **kwargs) -> "AbcStream":
         """
         Creates a new stream with the same init args as the current stream.
 
@@ -612,7 +667,10 @@ class AbcStream(
             AbcStream: new stream with same init args.
         """
         kwargs = {**self._stream_params, **kwargs}
-        return type(self)(uri or self.uri, **kwargs)
+        obj = type(self)(uri or self.uri, **kwargs)
+        if info:
+            obj.set_info(info)  # pylint: disable=protected-access
+        return obj
 
     def iter_dir(self) -> Iterator["AbcStream"]:
         """
@@ -620,10 +678,32 @@ class AbcStream(
         in the directory. Otherwise, it should yield all Stream in the same
         directory (or level) as the current stream.
         """
+        mode = self.mode.replace("w", "")
+        if "r" not in mode:
+            mode = f"r{mode}"
         # do not copy the content_type and encoding
-        return (
-            self.clone(uri, content_type="", encoding=None) for uri in self.iter_dir_()
+        return (self.clone(info.uri, mode=mode, info=info) for info in self.iter_dir_())
+
+    @_set_read_flag
+    def _iter_bytes_from_reader(self) -> Iterator[bytes]:
+        iter_bytes, info = self.read_to_iterable_(
+            self.uri, self._chunk_size, self._file, **self._kwargs
         )
+        self.set_info(info)
+        self._clear_buffer()
+        if iter_bytes:
+            for chunk in iter_bytes:
+                self._write(chunk)
+                yield chunk
+            self.seek(0)
+        else:
+            yield from self._iter_bytes_from_buffer()
+
+    def _iter_bytes_from_buffer(self) -> Iterator[bytes]:
+        with peek_stream(self._file, peek=0) as file_:
+            read = functools.partial(file_.read, self._chunk_size)
+            yield from iter(read, b"")
+        self.seek(0)
 
     def iter_bytes(self) -> Iterator[bytes]:
         """
@@ -633,25 +713,9 @@ class AbcStream(
         Yields:
             Iterator[bytes]: bytes stream from the start position
         """
-        if not self._info:
-            iter_bytes, info = self.read_to_iterable_(
-                self.uri, self._chunk_size, self._file, **self._kwargs
-            )
-            self._update_info(info)
-            self._clear_buffer()
-            if iter_bytes:
-                for chunk in iter_bytes:
-                    self._write(chunk)
-                    yield chunk
-            else:
-                with peek_stream(self._file, peek=0) as file_:
-                    read = functools.partial(file_.read, self._chunk_size)
-                    yield from iter(read, b"")
-            self.seek(0)
-        else:
-            with peek_stream(self._file, peek=0) as file_:
-                read = functools.partial(file_.read, self._chunk_size)
-                yield from iter(read, b"")
+        if not self._has_read:
+            return self._iter_bytes_from_reader()  # type: ignore
+        return self._iter_bytes_from_buffer()
 
     @need_sync
     def pipe(self, sink: IO, text_mode: bool = False) -> IO:
@@ -790,39 +854,26 @@ class AbcStream(
             self._sigquit_handler(signum, frame)
 
     def _cleanup(self):
-        self._info = None
+        self._has_read = False
+        self._has_stats = False
         if self._file and not self._file.closed:
             self._file.flush()
             self._file.close()
-
-    def _update_info(self, info: Optional[StreamInfo]):
-        if not info:
-            self._info = None
-        else:
-            info.content_type = info.content_type or self.content_type
-            info.encoding = info.encoding or self.encoding
-            info.etag = info.etag or self.etag
-            if self._info:
-                info.extras = info.extras or self._info.extras
-            self._info = info
 
     def __repr__(self):
         type_ = type(self)
         return (
             f"<{type_.__module__}.{type_.__qualname__} "
-            f"uri='{self.uri}' mode='{self.mode}' ... >"
+            f"uri='{self.uri}' mode='{self.mode}' etag='{self.etag}' >"
         )
 
     def __str__(self):
-        if "b" in self.mode:
-            return self.read().decode(self.encoding)
-        return self.read()
+        with peek_stream(self._file, peek=0) as stream:
+            return str(stream.read().decode(self.encoding))
 
     def __hash__(self):
-        if self._info and self._info.etag:
-            identifier = self.uri + self._info.etag
-            return hash(identifier.encode())
-        return hash(self.uri.encode())
+        identifier = self.uri + self.info.etag
+        return hash(identifier.encode())
 
     def __eq__(self, obj):
         if isinstance(obj, AbcStream):

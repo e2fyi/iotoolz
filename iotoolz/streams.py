@@ -7,7 +7,7 @@ import pathlib
 import urllib.parse
 from typing import Any, Dict, Iterable, Iterator, List, Type, Union
 
-from iotoolz._abc import AbcStream
+from iotoolz._abc import AbcStream, StreamInfo
 from iotoolz.extensions import S3Stream
 from iotoolz.file import FileStream
 from iotoolz.http import HttpStream
@@ -164,7 +164,6 @@ class Streams:
         if isinstance(uri, pathlib.Path):
             schema = "file"
 
-        print(schema)
         if not schema:
             schema, *_ = urllib.parse.urlsplit(str(uri))
 
@@ -292,6 +291,10 @@ class Streams:
         """Whether a stream points to an existing resource."""
         return self.open(uri).exists()
 
+    def stats(self, uri: Union[pathlib.Path, str]) -> StreamInfo:
+        """Get the StreamInfo."""
+        return self.open(uri).stats()
+
     @classmethod
     def set_buffer_rollover_size(cls, value: int):
         """
@@ -313,3 +316,4 @@ mkdir = stream_factory.mkdir
 iter_dir = stream_factory.iter_dir
 glob = stream_factory.glob
 exists = stream_factory.exists
+stats = stream_factory.stats

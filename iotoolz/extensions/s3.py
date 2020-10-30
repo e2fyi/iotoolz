@@ -1,8 +1,9 @@
 """This module implements the FileStream with python native "open" method."""
+import datetime
 import io
 import os.path
 import urllib.parse
-from typing import IO, Any, Dict, Iterable, Iterator, Tuple, Type, Union
+from typing import IO, Any, Dict, Iterable, Tuple, Type, Union
 
 try:
     import boto3
@@ -15,6 +16,7 @@ except ImportError as error:
     ) from error
 
 from iotoolz._abc import AbcStream, StreamInfo
+from iotoolz.utils import guess_filename
 
 ALLOWED_DOWNLOAD_ARGS = frozenset(boto3.s3.transfer.S3Transfer.ALLOWED_DOWNLOAD_ARGS)
 ALLOWED_UPLOAD_ARGS = frozenset(boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS)
@@ -149,6 +151,7 @@ class S3Stream(AbcStream):
         etag = resp.get("ETag", "").strip('"')
         encoding = resp.get("ContentEncoding", self.encoding)
         content_type = resp.get("ContentType", self.content_type)
+        last_modified = resp.get("LastModified")
 
         self._client.download_fileobj(
             self.bucket,
@@ -161,7 +164,11 @@ class S3Stream(AbcStream):
         return (
             [],
             StreamInfo(
-                content_type=content_type, encoding=encoding, etag=etag, extras=resp,
+                content_type=content_type,
+                encoding=encoding,
+                etag=etag,
+                last_modified=last_modified,
+                extras=resp,
             ),
         )
 
@@ -169,7 +176,6 @@ class S3Stream(AbcStream):
         self, uri: str, fileobj: IO[bytes], size: int, **kwargs
     ) -> StreamInfo:
         """Uploads the data in the buffer with 'boto3.s3.transfer.S3Transfer'."""
-        self._update_info(StreamInfo())
         self._client.upload_fileobj(
             fileobj,
             self.bucket,
@@ -181,7 +187,27 @@ class S3Stream(AbcStream):
             },
             Config=self._transfer_config,
         )
-        return StreamInfo()
+        return StreamInfo(last_modified=datetime.datetime.now())
+
+    def stats_(self) -> StreamInfo:
+        resp = self._client.head_object(
+            Bucket=self.bucket, Key=self.key, **self._head_args
+        )
+        return StreamInfo(
+            content_type=resp.get("ContentType"),
+            encoding=resp.get("ContentEncoding"),
+            etag=resp.get("ETag", "").strip('"'),
+            last_modified=resp.get("LastModified"),
+            extras=resp,
+        )
+
+    def exists(self) -> bool:
+        """Whether the stream points to an existing resource."""
+        try:
+            self.set_info(self.stats_())
+            return True
+        except botocore.errorfactory.ClientError:
+            return False
 
     @classmethod
     def set_default_client(cls, client: boto3.client) -> Type["S3Stream"]:
@@ -275,8 +301,8 @@ class S3Stream(AbcStream):
         """This method does nothing as you do not need to create a 'folder' for an object store."""
         ...
 
-    def _iter_dir_(self) -> Iterable[Tuple[str, str]]:
-        """Yields tuple of uri and etag in a directory."""
+    def iter_dir_(self) -> Iterable[StreamInfo]:
+        """Yields tuple of uri and the metadata in a directory."""
         continuation_token: str = ""
         if self.key.endswith("/"):
             prefix = self.key
@@ -293,37 +319,15 @@ class S3Stream(AbcStream):
             for content in response.get("Contents", []):
                 key = content.get("Key")
                 if key:
-                    yield f"{self._scheme}://{self.bucket}/{key}", content.get("ETag")
-
+                    etag = content.get("ETag", "").strip('"')
+                    last_modified = content.get("LastModified")
+                    uri = f"{self._scheme}://{self.bucket}/{key}"
+                    yield StreamInfo(
+                        uri=uri,
+                        name=guess_filename(uri),
+                        last_modified=last_modified,
+                        etag=etag,
+                        extras=content,
+                    )
             if not response.get("IsTruncated"):  # At the end of the list?
                 break
-
-    def iter_dir_(self) -> Iterable[str]:
-        return (uri for uri, etag in self._iter_dir_())
-
-    def iter_dir(self) -> Iterator["S3Stream"]:
-        """
-        If the current stream is a directory, this method will yield all Stream
-        in the directory. Otherwise, it should yield all Stream in the same
-        directory (or level) as the current stream.
-        """
-        for uri, etag in self._iter_dir_():
-            yield self.clone(uri, content_type="", encoding=None, etag=etag)  # type: ignore
-
-    def exists(self) -> bool:
-        """Whether the stream points to an existing resource."""
-        try:
-            resp = self._client.head_object(
-                Bucket=self.bucket, Key=self.key, **self._head_args
-            )
-            self._content_type = resp.get("ContentType", self._content_type)
-            self._encoding = resp.get("ContentEncoding", self._encoding)
-            self._info = StreamInfo(
-                content_type=self._content_type,
-                encoding=self.encoding,
-                etag=resp.get("ETag", ""),
-                extras=resp,
-            )
-            return True
-        except botocore.errorfactory.ClientError:
-            return False

@@ -3,6 +3,7 @@ Common io utils  based on existing libs.
 """
 import contextlib
 import functools
+import os.path
 from typing import Iterable, Iterator, Optional, Tuple, TypeVar
 
 import cytoolz
@@ -68,6 +69,12 @@ def guess_encoding(
         detector.result.get("encoding", default_encoding),  # type: ignore
         detector.result.get("confidence", 0.0),
     )
+
+
+def guess_filename(uri: str) -> str:
+    if uri.endswith("/"):
+        return ""
+    return os.path.basename(uri)
 
 
 guess_content_type_from_file = cytoolz.excepts(

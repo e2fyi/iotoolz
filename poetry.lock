@@ -191,6 +191,14 @@ version = ">=1.25.4,<1.26"
 
 [[package]]
 category = "main"
+description = "Extensible memoizing collections and decorators"
+name = "cachetools"
+optional = false
+python-versions = "~=3.5"
+version = "4.1.1"
+
+[[package]]
+category = "main"
 description = "Python package for providing Mozilla's CA Bundle."
 name = "certifi"
 optional = false
@@ -1573,7 +1581,7 @@ boto3 = ["boto3"]
 minio = ["minio"]
 
 [metadata]
-content-hash = "897aa5241c7250d3929946611c4660492b2ffa30018d9307174eaf0289ab4608"
+content-hash = "21979a5adc2f8ab20d36fa6b5636badafaeb6f9fd12e0a663cf232fdcaa25050"
 python-versions = ">=3.6,<4"
 
 [metadata.files]
@@ -1633,6 +1641,10 @@ boto3 = [
 botocore = [
     {file = "botocore-1.19.5-py2.py3-none-any.whl", hash = "sha256:50e6b9b0e082a9af620552b5d1b5966f1da09202d6ccd03fd2c9856ae0578db5"},
     {file = "botocore-1.19.5.tar.gz", hash = "sha256:2bacdfb1eb66c885be18b7557202160f9eb48d81e16881e1ce5176881cc9d8aa"},
+]
+cachetools = [
+    {file = "cachetools-4.1.1-py3-none-any.whl", hash = "sha256:513d4ff98dd27f85743a8dc0e92f55ddb1b49e060c2d5961512855cda2c01a98"},
+    {file = "cachetools-4.1.1.tar.gz", hash = "sha256:bbaa39c3dede00175df2dc2b03d0cf18dd2d32a7de7beb68072d13043c9edb20"},
 ]
 certifi = [
     {file = "certifi-2020.6.20-py2.py3-none-any.whl", hash = "sha256:8fc0819f1f30ba15bdb34cceffb9ef04d99f420f68eb75d901e9560b8749fc41"},

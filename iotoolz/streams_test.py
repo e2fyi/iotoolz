@@ -3,6 +3,7 @@ import os.path
 
 import requests_mock
 
+from iotoolz import StreamInfo
 from iotoolz.streams import (
     Stream,
     exists,
@@ -12,6 +13,7 @@ from iotoolz.streams import (
     open_stream,
     set_buffer_rollover_size,
     set_schema_kwargs,
+    stats,
 )
 
 
@@ -83,18 +85,38 @@ def test_open_http_stream():
         assert len(rmock.request_history) == 1
 
     with requests_mock.Mocker() as rmock:
+        rmock.head(url, headers={"content-type": "text/plain", "ETag": "123"})
         rmock.get(url, content=expected_bin)
 
         stream = Stream(url, mode="rb")
+        assert stream.stats() == StreamInfo(
+            uri=url,
+            name="foo.bar",
+            content_type="text/plain",
+            encoding="ISO-8859-1",
+            etag="123",
+        )
         assert stream.read() == expected_bin
         assert rmock.request_history[0].verify is False
 
 
 def test_temp_stream():
 
-    stream1 = Stream("tmp://foo/bar.txt", "rw", data="foo")
+    stream1 = Stream(
+        "tmp://foo/bar.txt",
+        "rw",
+        data="foo",
+        content_type="text/plain",
+        encoding="utf-8",
+    )
     stream1.seek(0, whence=2)
     stream1.write(" bar")
+    assert stats("tmp://foo/bar.txt") == StreamInfo(
+        uri="tmp://foo/bar.txt",
+        name="bar.txt",
+        encoding="utf-8",
+        content_type="text/plain",
+    )
 
     stream2 = Stream("tmp://foo/bar.txt")
     assert stream1 == stream2
