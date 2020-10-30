@@ -106,6 +106,9 @@ class TempStream(AbcStream):
     def stats_(self) -> StreamInfo:
         return StreamInfo()
 
+    def unlink(self, missing_ok: bool = True, **kwargs):
+        self._clear_buffer()
+
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
     ):

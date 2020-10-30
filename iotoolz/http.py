@@ -1,7 +1,6 @@
 """This module implements a HttpStream using the requests lib."""
 from typing import IO, Iterable, Tuple
 
-import cachetools
 import cytoolz
 import dateutil.parser
 import requests
@@ -79,7 +78,6 @@ class HttpStream(AbcStream):
         resp.raise_for_status()
         return StreamInfo(content_type=self.content_type, encoding=self.encoding)
 
-    @cachetools.cached(cache=cachetools.TTLCache(maxsize=1, ttl=60))
     def stats_(self) -> StreamInfo:
         resp = requests.head(
             self.uri, **cytoolz.dissoc(self._kwargs, "stream", "use_post")
@@ -93,6 +91,17 @@ class HttpStream(AbcStream):
             etag=resp.headers.get("ETag"),
             last_modified=last_modified,
         )
+
+    def unlink(self, missing_ok: bool = True, **kwargs):
+        kwargs = {**self._kwargs, **kwargs}
+        try:
+            resp = requests.delete(
+                self.uri, **cytoolz.dissoc(kwargs, "stream", "use_post")
+            )
+            resp.raise_for_status()
+        except Exception:  # pylint: disable=broad-except
+            if not missing_ok:
+                raise
 
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,

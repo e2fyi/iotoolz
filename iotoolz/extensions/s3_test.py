@@ -60,3 +60,6 @@ def test_s3stream(s3):
     assert list(S3Stream("s3://somebucket/foo/").iter_dir()) == [
         S3Stream("s3://somebucket/foo/bar.txt")
     ]
+
+    S3Stream("s3://somebucket/foo/bar.txt").unlink()
+    assert not S3Stream("s3://somebucket/foo/bar.txt").exists()

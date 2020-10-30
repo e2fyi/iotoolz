@@ -269,7 +269,7 @@ class Streams:
         """
         return self.open(uri).iter_dir()
 
-    def glob(self, uri: Union[pathlib.Path, str],) -> Iterator[AbcStream]:
+    def glob(self, uri: Union[pathlib.Path, str]) -> Iterator[AbcStream]:
         """
         Yield streams that matches the provided scheme and pattern.
 
@@ -287,13 +287,29 @@ class Streams:
         first_star = uri_.index("*")
         return self.open(uri_[0:first_star]).glob(uri_[first_star:])
 
-    def exists(self, uri: Union[pathlib.Path, str]) -> bool:
+    def exists(self, uri: Union[pathlib.Path, str, AbcStream]) -> bool:
         """Whether a stream points to an existing resource."""
+        if isinstance(uri, AbcStream):
+            return uri.exists()
         return self.open(uri).exists()
 
-    def stats(self, uri: Union[pathlib.Path, str]) -> StreamInfo:
+    def stats(self, uri: Union[pathlib.Path, str, AbcStream]) -> StreamInfo:
         """Get the StreamInfo."""
+        if isinstance(uri, AbcStream):
+            return uri.stats()
         return self.open(uri).stats()
+
+    def unlink(
+        self,
+        uri: Union[pathlib.Path, str, AbcStream],
+        missing_ok: bool = True,
+        **kwargs,
+    ):
+        """Delete and remove a stream resource."""
+        if isinstance(uri, AbcStream):
+            uri.unlink(missing_ok=True, **kwargs)  # type: ignore
+        else:
+            self.open(uri).unlink(missing_ok=missing_ok, **kwargs)
 
     @classmethod
     def set_buffer_rollover_size(cls, value: int):
@@ -317,3 +333,4 @@ iter_dir = stream_factory.iter_dir
 glob = stream_factory.glob
 exists = stream_factory.exists
 stats = stream_factory.stats
+unlink = delete = remove = stream_factory.unlink

@@ -95,6 +95,13 @@ class FileStream(AbcStream):
             last_modified=last_modified,
         )
 
+    def unlink(self, missing_ok: bool = True, **kwargs):
+        try:
+            pathlib.Path(self.uri).unlink()
+        except FileNotFoundError:
+            if not missing_ok:
+                raise
+
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
     ):

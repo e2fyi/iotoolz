@@ -26,6 +26,12 @@ ALLOWED_HEAD_ARGS = {
     "SSECustomerKey",
     "RequestPayer",
 }
+ALLOWED_DELETE_ARGS = {
+    "VersionId",
+    "RequestPayer",
+    "BypassGovernanceRetention",
+    "ExpectedBucketOwner",
+}
 
 
 class S3Stream(AbcStream):
@@ -140,6 +146,9 @@ class S3Stream(AbcStream):
         self._head_args = {
             key: value for key, value in kwargs.items() if key in ALLOWED_HEAD_ARGS
         }
+        self._delete_args = {
+            key: value for key, value in kwargs.items() if key in ALLOWED_DELETE_ARGS
+        }
 
     def read_to_iterable_(
         self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
@@ -208,6 +217,16 @@ class S3Stream(AbcStream):
             return True
         except botocore.errorfactory.ClientError:
             return False
+
+    def unlink(self, missing_ok: bool = True, **kwargs):
+        try:
+            kwargs = {**self._delete_args, **kwargs}
+            self._client.delete_object(
+                Bucket=self.bucket, Key=self.key, **kwargs,
+            )
+        except botocore.errorfactory.ClientError:
+            if not missing_ok:
+                raise
 
     @classmethod
     def set_default_client(cls, client: boto3.client) -> Type["S3Stream"]:

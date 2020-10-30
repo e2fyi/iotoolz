@@ -179,6 +179,10 @@ class AbcStream(
         }
         atexit.register(weakref.WeakMethod(self._cleanup))  # type: ignore
 
+        # alias
+        self.delete = self.unlink
+        self.remove = self.unlink
+
     @abc.abstractmethod
     def read_to_iterable_(
         self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
@@ -250,6 +254,11 @@ class AbcStream(
     @abc.abstractmethod
     def exists(self) -> bool:
         """Whether the path points to an existing resource."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def unlink(self, missing_ok: bool = True, **kwargs):
+        """Delete and remove the resource."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -407,6 +416,7 @@ class AbcStream(
         return self._info
 
     def stats(self) -> StreamInfo:
+        """Retrieve the StreamInfo of the current stream."""
         try:
             self.set_info(self.stats_())
             self._has_stats = True
