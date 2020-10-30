@@ -869,9 +869,7 @@ class AbcStream(
 
     def __str__(self):
         with peek_stream(self._file, peek=0) as stream:
-            if "b" in self.mode:
-                return stream.read().decode(self.encoding)
-            return stream.read()
+            return str(stream.read().decode(self.encoding))
 
     def __hash__(self):
         identifier = self.uri + self.info.etag
