@@ -5,7 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/e2fyi/iotoolz/badge.svg?branch=master)](https://coveralls.io/github/e2fyi/iotoolz?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/iotoolz/badge/?version=latest)](https://iotoolz.readthedocs.io/en/latest/?badge=latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Downloads](https://pepy.tech/badge/iotoolz/month)](https://pepy.tech/project/iotoolz/month)
+[![Downloads](https://pepy.tech/badge/iotoolz/month)](https://pepy.tech/project/iotoolz)
 
 `iotoolz` is an improvement over `e2fyi-utils` and is inspired partly by `toolz`.
 `iotoolz` is a lib to help provide a consistent dev-x for interacting with any IO resources.
@@ -158,7 +158,6 @@ iter_dir("tmp://foo/")
 
 # returns s1 only
 glob("tmp://foo/bar/*.txt")
-
 ```
 
 ## Stream-like operations
@@ -207,12 +206,14 @@ stream.close() # close the stream
 `exists`, `mkdir`, `iter_dir` and `glob` are path-like methods that are available to the
 stream object. These methods mimics their equivalent in `pathlib.Path` when appropriate.
 
-| method     | supported streams                          | desc                                                            |
-| ---------- | ------------------------------------------ | --------------------------------------------------------------- |
-| `exists`   | `FileStream`, `HttpStream`, `S3Stream`     | check if a stream points to an existing resource.               |
-| `mkdir`    | `FileStream`                               | create a directory.                                             |
-| `iter_dir` | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory.                      |
-| `glob`     | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory that match a pattern. |
+| method     | supported streams                          | desc                                                                                       |
+| ---------- | ------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `stats`    | All Streams                                | return the StreamInfo for an existing resource                                             |
+| `unlink`   | All Streams                                | Delete and remove the stream (except for `TempStream` where the buffer is cleared instead) |
+| `exists`   | All Streams                                | check if a stream points to an existing resource.                                          |
+| `mkdir`    | `FileStream`                               | create a directory.                                                                        |
+| `iter_dir` | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory.                                                 |
+| `glob`     | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory that match a pattern.                            |
 
 ```py
 import itertools
@@ -235,6 +236,19 @@ for stream in Stream("s3://bucket/prefix/").glob("*.txt"):
 
 # exists
 exists("s3://bucket/prefix/foo.txt")
+
+# stats
+info = stats("s3://bucket/prefix/foo.txt")
+print(info.name)
+print(info.content_type)
+print(info.encoding)
+print(info.last_modified)
+print(info.etag)
+print(info.extras)
+
+# delete resource
+unlink("s3://bucket/prefix/foo.txt")
+
 ```
 
 ## Piping streams

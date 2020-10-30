@@ -253,6 +253,11 @@ class AbcStream(
         raise NotImplementedError
 
     @abc.abstractmethod
+    def unlink(self, missing_ok: bool = True, **kwargs):
+        """Delete and remove the resource."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
     ):

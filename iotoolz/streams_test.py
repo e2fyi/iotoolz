@@ -1,6 +1,9 @@
 import io
 import os.path
 
+import pytest
+import requests
+import requests.exceptions
 import requests_mock
 
 from iotoolz import StreamInfo
@@ -14,6 +17,7 @@ from iotoolz.streams import (
     set_buffer_rollover_size,
     set_schema_kwargs,
     stats,
+    unlink,
 )
 
 
@@ -54,6 +58,18 @@ def test_streams(tmpdir):
 
     # glob files
     assert list(glob(dirpath / "*.py")) == [Stream(dirpath / "example.py")]
+
+    # unlink files
+    unlink(dirpath / "example.py")
+    assert not exists(dirpath / "example.py")
+    unlink(dirpath / "example.py")  # shld not raise exception
+    with pytest.raises(FileNotFoundError):
+        unlink(dirpath / "example.py", missing_ok=False)
+
+    # unlink files
+    assert exists(Stream(filepath))
+    unlink(Stream(filepath))
+    assert not exists(Stream(filepath))
 
 
 def test_buffer_rollover(tmpdir):
@@ -99,6 +115,24 @@ def test_open_http_stream():
         assert stream.read() == expected_bin
         assert rmock.request_history[0].verify is False
 
+    with requests_mock.Mocker() as rmock:
+        rmock.head(url)
+        rmock.delete(url)
+
+        Stream(url).unlink()
+        assert rmock.last_request.method == "DELETE"
+
+    with requests_mock.Mocker() as rmock:
+        rmock.head(url)
+        rmock.delete(url, exc=requests.exceptions.RequestException)
+
+        # should not throw error
+        Stream(url).unlink()
+
+        # should throw error
+        with pytest.raises(requests.exceptions.RequestException):
+            Stream(url).unlink(missing_ok=False)
+
 
 def test_temp_stream():
 
@@ -124,6 +158,9 @@ def test_temp_stream():
     stream2.seek(0)
     assert stream2.read() == "foo bar"
 
-    stream3 = Stream("tmp://foo/bar.csv")
+    stream3 = Stream("tmp://foo/bar.csv", data="hello")
 
     assert list(glob("tmp://foo/*.csv")) == [stream3]
+
+    stream3.unlink()
+    assert Stream("tmp://foo/bar.csv").read() == ""
