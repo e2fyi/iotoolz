@@ -333,4 +333,4 @@ iter_dir = stream_factory.iter_dir
 glob = stream_factory.glob
 exists = stream_factory.exists
 stats = stream_factory.stats
-unlink = stream_factory.unlink
+unlink = delete = remove = stream_factory.unlink
