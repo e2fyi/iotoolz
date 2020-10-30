@@ -2,8 +2,11 @@
 
 ## v0.1.0-rc-10
 
+- Added `stats` as a required method
 - Added `etag` as arg to stream constructor
-- `S3Stream.iter_dir()` will now yield stream with etag
+- `S3Stream.iter_dir()` will now yield streams with etag
+- Change signature of `AbcStream.iter_dir_()` to return `Iterable[StreamInfo]` instead
+- Refractored the internals of AbcStream to be cleaner
 
 ## v0.1.0-rc-9
 

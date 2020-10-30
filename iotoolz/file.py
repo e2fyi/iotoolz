@@ -1,4 +1,5 @@
 """This module implements the FileStream with python native "open" method."""
+import datetime
 import io
 import os
 import os.path
@@ -46,7 +47,9 @@ class FileStream(AbcStream):
     def read_to_iterable_(
         self, uri: str, chunk_size: int, fileobj: IO[bytes], **kwargs
     ) -> Tuple[Iterable[bytes], StreamInfo]:
-        self._content_type = self.content_type or guess_content_type_from_file(self.uri)
+        last_modified = datetime.datetime.fromtimestamp(
+            pathlib.Path(self.uri).stat().st_mtime
+        )
 
         def iter_bytes() -> Iterable[bytes]:
             with open(
@@ -57,7 +60,10 @@ class FileStream(AbcStream):
 
         return (
             iter_bytes(),
-            StreamInfo(content_type=self.content_type, encoding=self.encoding),
+            StreamInfo(
+                content_type=guess_content_type_from_file(self.uri),
+                last_modified=last_modified,
+            ),
         )
 
     def write_from_fileobj_(
@@ -75,7 +81,19 @@ class FileStream(AbcStream):
             newline=self.newline,
         ) as stream:
             shutil.copyfileobj(fileobj, stream)
-        return StreamInfo()
+        last_modified = datetime.datetime.fromtimestamp(
+            pathlib.Path(self.uri).stat().st_mtime
+        )
+        return StreamInfo(last_modified=last_modified)
+
+    def stats_(self) -> StreamInfo:
+        last_modified = datetime.datetime.fromtimestamp(
+            pathlib.Path(self.uri).stat().st_mtime
+        )
+        return StreamInfo(
+            content_type=guess_content_type_from_file(self.uri),
+            last_modified=last_modified,
+        )
 
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
@@ -105,9 +123,14 @@ class FileStream(AbcStream):
         """
         pathlib.Path(self.uri).mkdir(mode=mode, parents=parents, exist_ok=exist_ok)
 
-    def iter_dir_(self) -> Iterable[str]:
+    def iter_dir_(self) -> Iterable[StreamInfo]:
         dirpath = self.uri if os.path.isdir(self.uri) else os.path.dirname(self.uri)
-        return (os.path.join(dirpath, fpath) for fpath in os.listdir(dirpath))
+        for entry in os.scandir(dirpath):
+            yield StreamInfo(
+                uri=entry.path,
+                name=entry.name,
+                last_modified=datetime.datetime.fromtimestamp(entry.stat().st_mtime),
+            )
 
     def exists(self) -> bool:
         """Whether the stream points to an existing resource."""
