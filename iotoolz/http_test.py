@@ -9,6 +9,7 @@ def test_httpstream_read_default():
     expected_bin = b"hello\nworld"
 
     with requests_mock.Mocker() as rmock:
+        rmock.head(url)
         rmock.get(url, content=expected_bin)
 
         stream = HttpStream(url)
@@ -31,11 +32,16 @@ def test_httpstream_read_bin():
     expected_bin = b"hello\nworld"
 
     with requests_mock.Mocker() as rmock:
+        rmock.head(url)
         rmock.get(url, content=expected_bin)
 
         stream = HttpStream(url, mode="rb", chunk_size=5, verify=False)
+        assert stream._kwargs == {"verify": False}
         assert stream.read() == expected_bin
-        assert rmock.request_history[0].verify is False
+        # pytest some how hash the stream before it is totally created
+        # hence trigger a head call
+        assert rmock.request_history[1].method == "GET"
+        assert rmock.request_history[1].verify is False
 
         stream.seek(0)
         assert list(stream) == [b"hello", b"\nworl", b"d"]
