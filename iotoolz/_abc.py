@@ -421,8 +421,22 @@ class AbcStream(
             self.set_info(self.stats_())
             self._has_stats = True
         except Exception as error:  # pylint: disable=broad-except
-            logging.warning(error)
+            logging.warning(self.uri, error)
         return self._info
+
+    def is_dir(self) -> bool:
+        """Whether stream points to a existing dir."""
+        return self.exists() and self.uri.endswith("/")
+
+    def is_file(self) -> bool:
+        """Whether stream points to a existing file."""
+        return self.exists() and not self.uri.endswith("/")
+
+    def rmdir(self, ignore_errors: bool = False, **kwargs) -> "AbcStream":
+        """Remove the entire directory."""
+        for stream in self.iter_dir():
+            stream.unlink(missing_ok=ignore_errors, **kwargs)
+        return self
 
     @need_sync
     def peek(self, size: Optional[int] = None) -> bytes:
@@ -559,31 +573,41 @@ class AbcStream(
         """
         self._file.flush()
 
-    def save(self) -> "AbcStream":
+    def save(
+        self, data: Union[bytes, bytearray, str] = None, close: bool = False
+    ) -> "AbcStream":
         """
         Flush and stream everything in the buffer to the actual resource location.
 
         Does nothing if mode is read-only. Will not close the stream.
 
+        Args:
+            data: (Union[bytes, bytearray, str], optional): Write additional data to stream before saving. Defaults to None.
+            close (bool, optional): Close stream after saving. Defaults to False.
+
         Returns:
             [AbcStream]: current stream object.
         """
-        if self.closed or self.is_empty():
+        if self.closed:
+            return self
+
+        if self.is_empty() and not data:
+            if close:
+                self.close()
             return self
 
         if "w" in self.mode or "a" in self.mode:
-            # remember current pos
-            pos = self.tell()
+            if data:
+                self.write(data)
             self.flush()
-            # go to start of stream
-            self.seek(0)
-            info = self.write_from_fileobj_(
-                self.uri, self._file, self.size, **self._kwargs
-            )
-            if not self._file.closed:
-                self.set_info(info)
-                # restore org pos
-                self.seek(pos)
+            with peek_stream(self._file, peek=0, ignore_closed=True) as stream:
+                info = self.write_from_fileobj_(
+                    self.uri, stream, self.size, **self._kwargs
+                )
+            self.set_info(info)
+
+        if close:
+            self.close()
 
         return self
 
@@ -787,10 +811,12 @@ class AbcStream(
         Yields:
             AbcStream: stream object
         """
+        if self.is_dir():
+            pattern = os.path.join(self.uri, pattern)
+        else:
+            pattern = os.path.join(os.path.dirname(self.uri), pattern)
         return (
-            stream
-            for stream in self.iter_dir()
-            if fnmatch.fnmatch(os.path.basename(stream.uri), pattern)
+            stream for stream in self.iter_dir() if fnmatch.fnmatch(stream.uri, pattern)
         )
 
     def _emit(self, chunk: bytes, pipes: List[Tuple[str, IO]]):

@@ -57,9 +57,45 @@ def test_s3stream(s3):
         {"Key": "key2", "Value": "value2"},
     ]
 
-    assert list(S3Stream("s3://somebucket/foo/").iter_dir()) == [
-        S3Stream("s3://somebucket/foo/bar.txt")
-    ]
 
+def test_s3stream_pathops(s3):
+    from iotoolz.extensions.s3 import S3Stream
+
+    s3.create_bucket(Bucket="somebucket")
+    s3.create_bucket(Bucket="somebucket")
+    S3Stream("s3://somebucket/foo/bar.txt", "w").save("foobar", close=True)
+
+    assert S3Stream("s3://somebucket/foo/bar.txt").exists()
+    assert S3Stream("s3://somebucket/foo/bar.txt").is_file()
     S3Stream("s3://somebucket/foo/bar.txt").unlink()
     assert not S3Stream("s3://somebucket/foo/bar.txt").exists()
+
+
+def test_s3stream_dirops(s3):
+    from iotoolz.extensions.s3 import S3Stream
+
+    s3.create_bucket(Bucket="somebucket")
+    S3Stream("s3://somebucket/foo/bar.txt", "w").save("foobar", close=True)
+    S3Stream("s3://somebucket/foo/bar/text.txt", "w").save("foobar2", close=True)
+    S3Stream("s3://somebucket/hello_world.txt", "w").save("hello", close=True)
+    S3Stream("s3://somebucket/data.json", "w").save("{}", close=True)
+
+    assert S3Stream("s3://somebucket/foo/").is_dir()
+    assert list(S3Stream("s3://somebucket/foo/").iter_dir()) == [
+        S3Stream("s3://somebucket/foo/bar.txt"),
+        S3Stream("s3://somebucket/foo/bar/text.txt"),
+    ]
+    assert list(S3Stream("s3://somebucket/").glob("*/*.txt")) == [
+        S3Stream("s3://somebucket/foo/bar.txt"),
+        S3Stream("s3://somebucket/foo/bar/text.txt"),
+    ]
+    assert list(S3Stream("s3://somebucket/").glob("*.txt")) == [
+        S3Stream("s3://somebucket/foo/bar.txt"),
+        S3Stream("s3://somebucket/foo/bar/text.txt"),
+        S3Stream("s3://somebucket/hello_world.txt"),
+    ]
+
+    S3Stream("s3://somebucket/foo/").rmdir()
+    assert list(S3Stream("s3://somebucket/").glob("*.txt")) == [
+        S3Stream("s3://somebucket/hello_world.txt"),
+    ]

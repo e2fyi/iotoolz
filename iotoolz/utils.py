@@ -3,18 +3,21 @@ Common io utils  based on existing libs.
 """
 import contextlib
 import functools
+import io
 import os.path
-from typing import Iterable, Iterator, Optional, Tuple, TypeVar
+from typing import IO, Any, Iterable, Iterator, Optional, Tuple, TypeVar
 
 import cytoolz
 import magic
 from chardet.universaldetector import UniversalDetector
 
-T = TypeVar("T")
+T = TypeVar("T", io.IOBase, IO, Any)
 
 
 @contextlib.contextmanager
-def peek_stream(stream: T, peek: Optional[int] = None) -> Iterator[T]:
+def peek_stream(
+    stream: T, peek: Optional[int] = None, ignore_closed: bool = True
+) -> Iterator[T]:
     """
     Context manager to restore the stream position when exiting the context.
 
@@ -24,6 +27,7 @@ def peek_stream(stream: T, peek: Optional[int] = None) -> Iterator[T]:
     Args:
         stream (T): Any stream object with the seek and tell method.
         peek (Optional[int], optional): stream position to start at when entering the context. Defaults to None.
+        ignore_closed (bool, optional): do not restore to position if file is already closed. Defaults to True.
 
     Raises:
         TypeError: stream is not seekable.
@@ -39,7 +43,8 @@ def peek_stream(stream: T, peek: Optional[int] = None) -> Iterator[T]:
             stream.seek(peek)  # type: ignore
         yield stream
     finally:
-        stream.seek(pos)  # type: ignore
+        if not (ignore_closed and stream.closed):
+            stream.seek(pos)  # type: ignore
 
 
 def guess_encoding(

@@ -102,6 +102,20 @@ class FileStream(AbcStream):
             if not missing_ok:
                 raise
 
+    def is_dir(self) -> bool:
+        """Whether stream points to a existing dir."""
+        return pathlib.Path(self.uri).is_dir()
+
+    def is_file(self) -> bool:
+        """Whether stream points to a existing file."""
+        return pathlib.Path(self.uri).is_file()
+
+    def rmdir(self, ignore_errors: bool = False, **kwargs) -> "FileStream":
+        """Remove the entire directory."""
+        print(self.uri)
+        shutil.rmtree(self.uri, ignore_errors=ignore_errors, **kwargs)
+        return self
+
     def mkdir(
         self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
     ):

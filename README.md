@@ -206,14 +206,15 @@ stream.close() # close the stream
 `exists`, `mkdir`, `iter_dir` and `glob` are path-like methods that are available to the
 stream object. These methods mimics their equivalent in `pathlib.Path` when appropriate.
 
-| method                       | supported streams                          | desc                                                                                       |
-| ---------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `stats`                      | All Streams                                | return the StreamInfo for an existing resource                                             |
-| `unlink`, `delete`, `remove` | All Streams                                | Delete and remove the stream (except for `TempStream` where the buffer is cleared instead) |
-| `exists`                     | All Streams                                | check if a stream points to an existing resource.                                          |
-| `mkdir`                      | `FileStream`                               | create a directory.                                                                        |
-| `iter_dir`                   | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory.                                                 |
-| `glob`                       | `FileStream`, `TempStream`, and `S3Stream` | iterate thru the streams in the directory that match a pattern.                            |
+| method                       | supported streams                           | desc                                                                                       |
+| ---------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `stats`                      | All Streams                                 | return the StreamInfo for an existing resource                                             |
+| `unlink`, `delete`, `remove` | All Streams                                 | Delete and remove the stream (except for `TempStream` where the buffer is cleared instead) |
+| `exists`                     | All Streams                                 | check if a stream points to an existing resource.                                          |
+| `mkdir`                      | `FileStream`                                | create a directory.                                                                        |
+| `rmdir`                      | `FileStream`, `TempStream`, and `S3Stream`, | remove recursively everything in the directory.                                            |
+| `iter_dir`                   | `FileStream`, `TempStream`, and `S3Stream`  | iterate thru the streams in the directory.                                                 |
+| `glob`                       | `FileStream`, `TempStream`, and `S3Stream`  | iterate thru the streams in the directory that match a pattern.                            |
 
 ```py
 import itertools
@@ -248,6 +249,9 @@ print(info.extras)
 
 # delete resource
 unlink("s3://bucket/prefix/foo.txt")
+
+# rm all key with prefix
+rmdir("s3://bucket/prefix/")
 
 ```
 

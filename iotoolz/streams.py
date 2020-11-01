@@ -311,6 +311,18 @@ class Streams:
         else:
             self.open(uri).unlink(missing_ok=missing_ok, **kwargs)
 
+    def rmdir(
+        self,
+        uri: Union[pathlib.Path, str, AbcStream],
+        ignore_errors: bool = False,
+        **kwargs,
+    ):
+        """Remove the entire directory."""
+        if isinstance(uri, AbcStream):
+            uri.rmdir(ignore_errors=ignore_errors, **kwargs)
+        else:
+            self.open(uri).rmdir(ignore_errors=ignore_errors, **kwargs)
+
     @classmethod
     def set_buffer_rollover_size(cls, value: int):
         """
@@ -334,3 +346,4 @@ glob = stream_factory.glob
 exists = stream_factory.exists
 stats = stream_factory.stats
 unlink = delete = remove = stream_factory.unlink
+rmdir = stream_factory.rmdir
