@@ -15,6 +15,8 @@ except ImportError as error:
         "You can install boto3 by running the command: 'pip install iotoolz[boto3]'"
     ) from error
 
+import cytoolz
+
 from iotoolz._abc import AbcStream, StreamInfo
 from iotoolz.utils import guess_filename
 
@@ -218,6 +220,14 @@ class S3Stream(AbcStream):
         except botocore.errorfactory.ClientError:
             return False
 
+    def is_dir(self) -> bool:
+        """Whether stream points to a existing dir."""
+        return self.uri.endswith("/")
+
+    def is_file(self) -> bool:
+        """Whether stream points to a existing file."""
+        return self.exists()
+
     def unlink(self, missing_ok: bool = True, **kwargs):
         try:
             kwargs = {**self._delete_args, **kwargs}
@@ -227,6 +237,22 @@ class S3Stream(AbcStream):
         except botocore.errorfactory.ClientError:
             if not missing_ok:
                 raise
+
+    def rmdir(self, ignore_errors: bool = False, **kwargs) -> "S3Stream":
+        """Remove the entire directory."""
+        try:
+            kwargs = {**self._delete_args, **kwargs}
+            batched = cytoolz.partition_all(1000, self.iter_dir())
+            for batch in batched:
+                self._client.delete_objects(
+                    Bucket=self.bucket,
+                    Delete={"Objects": [{"Key": stream.key} for stream in batch]},
+                    **kwargs,
+                )
+        except botocore.errorfactory.ClientError:
+            if not ignore_errors:
+                raise
+        return self
 
     @classmethod
     def set_default_client(cls, client: boto3.client) -> Type["S3Stream"]:
@@ -323,7 +349,7 @@ class S3Stream(AbcStream):
     def iter_dir_(self) -> Iterable[StreamInfo]:
         """Yields tuple of uri and the metadata in a directory."""
         continuation_token: str = ""
-        if self.key.endswith("/"):
+        if self.is_dir():
             prefix = self.key
         else:
             prefix = os.path.dirname(self.key)

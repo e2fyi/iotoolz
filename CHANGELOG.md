@@ -2,10 +2,11 @@
 
 ## v0.1.0-rc-10
 
-- Added `stats` and `unlink` as a required method
-- Added `etag` as arg to stream constructor
-- `S3Stream.iter_dir()` will now yield streams with etag
-- Change signature of `AbcStream.iter_dir_()` to return `Iterable[StreamInfo]` instead
+- Added `stats` and `unlink` abstract methods to `AbcStream`
+- Added `rmdir`, `is_file`, `is_dir` methods to `AbcStream`
+- Fix `glob` to correctly match both dir and filename
+- `S3Stream.iter_dir()` will now yield streams with `StreamInfo`
+- `AbcStream.iter_dir_()` now return `Iterable[StreamInfo]` instead of `Iterable[str]`
 - Refractored the internals of AbcStream to be cleaner
 
 ## v0.1.0-rc-9

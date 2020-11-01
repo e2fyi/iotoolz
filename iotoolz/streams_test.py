@@ -14,6 +14,7 @@ from iotoolz.streams import (
     iter_dir,
     mkdir,
     open_stream,
+    rmdir,
     set_buffer_rollover_size,
     set_schema_kwargs,
     stats,
@@ -70,6 +71,13 @@ def test_streams(tmpdir):
     assert exists(Stream(filepath))
     unlink(Stream(filepath))
     assert not exists(Stream(filepath))
+
+    # rmdir
+    mkdir(dirpath / "foo")
+    open_stream(dirpath / "foo" / "abc.txt", "w").save("hello", close=True)
+    assert len(list(iter_dir(dirpath / "foo"))) > 0
+    rmdir(dirpath / "foo")
+    assert len(list(iter_dir(dirpath))) == 0
 
 
 def test_buffer_rollover(tmpdir):
