@@ -8,10 +8,11 @@ import datetime
 import fnmatch
 import functools
 import io
-import logging
 import os.path
 import signal
 import tempfile
+import threading
+import warnings
 import weakref
 from typing import (
     IO,
@@ -163,9 +164,13 @@ class AbcStream(
         self._pipes: List[Tuple[str, IO]] = []
 
         _teardown = weakref.WeakMethod(self._teardown)  # type: ignore
-        self._sigterm_handler = signal.signal(signal.SIGTERM, _teardown)  # type: ignore
-        self._sigint_handler = signal.signal(signal.SIGINT, _teardown)  # type: ignore
-        self._sigquit_handler = signal.signal(signal.SIGQUIT, _teardown)  # type: ignore
+        if threading.current_thread() is threading.main_thread():
+            self._sigterm_handler = signal.signal(signal.SIGTERM, _teardown)  # type: ignore
+            self._sigint_handler = signal.signal(signal.SIGINT, _teardown)  # type: ignore
+            self._sigquit_handler = signal.signal(signal.SIGQUIT, _teardown)  # type: ignore
+        else:
+            self._sigterm_handler = self._sigint_handler = self._sigquit_handler = None
+
         self._stream_params = {
             "mode": mode,
             "buffering": buffering,
@@ -421,7 +426,7 @@ class AbcStream(
             self.set_info(self.stats_())
             self._has_stats = True
         except Exception as error:  # pylint: disable=broad-except
-            logging.warning(self.uri, error)
+            warnings.warn(f"{self.uri}: {error}", RuntimeWarning)
         return self._info
 
     def is_dir(self) -> bool:
