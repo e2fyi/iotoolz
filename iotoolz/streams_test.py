@@ -1,5 +1,6 @@
 import io
 import os.path
+import threading
 
 import pytest
 import requests
@@ -78,6 +79,32 @@ def test_streams(tmpdir):
     assert len(list(iter_dir(dirpath / "foo"))) > 0
     rmdir(dirpath / "foo")
     assert len(list(iter_dir(dirpath))) == 0
+
+
+def test_streams_in_thread(tmpdir):
+    class MockThread(threading.Thread):
+        def mock_func(self):
+            dirpath = tmpdir / "data"
+            with open_stream(dirpath / "example.py", "w") as stream:
+                stream.write("hello")
+            assert exists(Stream(dirpath / "example.py"))
+
+        def run(self):
+            self.exc = None
+            try:
+                self.mock_func()
+            except BaseException as e:
+                self.exc = e
+
+        def join(self):
+            threading.Thread.join(self)
+            if self.exc:
+                raise self.exc
+
+    thread = MockThread()
+    thread.start()
+    thread.join()
+    # should not have any error
 
 
 def test_buffer_rollover(tmpdir):

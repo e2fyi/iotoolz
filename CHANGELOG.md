@@ -1,5 +1,9 @@
 # `iotoolz`
 
+## v0.1.0-rc-11
+
+- Fix error when running inside a thread (will not register signal handler if inside a thread). Dev need to ensure stream is flushed and closed properly.
+
 ## v0.1.0-rc-10
 
 - Added `stats` and `unlink` abstract methods to `AbcStream`
