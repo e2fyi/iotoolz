@@ -2,16 +2,13 @@
 This module provides the abstract class for a generic IOStream.
 """
 import abc
-import atexit
 import dataclasses
 import datetime
 import fnmatch
 import functools
 import io
 import os.path
-import signal
 import tempfile
-import threading
 import warnings
 import weakref
 from typing import (
@@ -163,14 +160,6 @@ class AbcStream(
         )
         self._pipes: List[Tuple[str, IO]] = []
 
-        _teardown = weakref.WeakMethod(self._teardown)  # type: ignore
-        if threading.current_thread() is threading.main_thread():
-            self._sigterm_handler = signal.signal(signal.SIGTERM, _teardown)  # type: ignore
-            self._sigint_handler = signal.signal(signal.SIGINT, _teardown)  # type: ignore
-            self._sigquit_handler = signal.signal(signal.SIGQUIT, _teardown)  # type: ignore
-        else:
-            self._sigterm_handler = self._sigint_handler = self._sigquit_handler = None
-
         self._stream_params = {
             "mode": mode,
             "buffering": buffering,
@@ -182,11 +171,13 @@ class AbcStream(
             "chunk_size": chunk_size,
             **kwargs,
         }
-        atexit.register(weakref.WeakMethod(self._cleanup))  # type: ignore
 
         # alias
         self.delete = self.unlink
         self.remove = self.unlink
+
+        # finalizer
+        self._finalizer = weakref.finalize(self, weakref.WeakMethod(self.close))  # type: ignore
 
     @abc.abstractmethod
     def read_to_iterable_(
@@ -885,15 +876,6 @@ class AbcStream(
     ) -> Iterable[str]:
         return (data.decode(encoding or self.encoding) for data in iter_bytes)
 
-    def _teardown(self, signum: signal.Signals, frame):
-        self._cleanup()
-        if signum == signal.SIGTERM and callable(self._sigterm_handler):
-            self._sigterm_handler(signum, frame)
-        elif signum == signal.SIGINT and callable(self._sigint_handler):
-            self._sigint_handler(signum, frame)
-        elif signum == signal.SIGQUIT and callable(self._sigquit_handler):
-            self._sigquit_handler(signum, frame)
-
     def _cleanup(self):
         self._has_read = False
         self._has_stats = False
@@ -905,20 +887,16 @@ class AbcStream(
         type_ = type(self)
         return (
             f"<{type_.__module__}.{type_.__qualname__} "
-            f"uri='{self.uri}' mode='{self.mode}' etag='{self.etag}' >"
+            f"uri='{self.uri}' etag='{self.info.etag}' >"
         )
 
     def __str__(self):
         with peek_stream(self._file, peek=0) as stream:
             return str(stream.read().decode(self.encoding))
 
-    def __hash__(self):
-        identifier = self.uri + self.info.etag
-        return hash(identifier.encode())
-
     def __eq__(self, obj):
         if isinstance(obj, AbcStream):
-            return hash(obj) == hash(self)
+            return obj.__repr__() == self.__repr__()
         return False
 
 
