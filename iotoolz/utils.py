@@ -3,9 +3,10 @@ Common io utils  based on existing libs.
 """
 import contextlib
 import functools
+import inspect
 import io
 import os.path
-from typing import IO, Any, Iterable, Iterator, Optional, Tuple, TypeVar
+from typing import IO, Any, Callable, Iterable, Iterator, Optional, Tuple, TypeVar
 
 import cytoolz
 import magic
@@ -90,3 +91,14 @@ guess_content_type_from_file = cytoolz.excepts(
 guess_content_type_from_buffer = cytoolz.excepts(
     Exception, functools.partial(magic.from_buffer, mime=True), lambda _: ""
 )
+
+
+def copy_signature(src_func: Callable) -> Callable:
+    """decorator to copy both the docstr and signature of the function."""
+
+    def copy(func: Callable) -> Callable:
+        func.__signature__ = inspect.signature(src_func)  # type: ignore
+        func.__doc__ = src_func.__doc__
+        return func
+
+    return copy

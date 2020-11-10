@@ -1,6 +1,8 @@
 import io
+from iotoolz.temp import TempStream
 import os.path
 import threading
+import signal
 
 import pytest
 import requests
@@ -40,6 +42,7 @@ def test_streams(tmpdir):
     stream.save()
     assert os.path.isfile(filepath)
     assert Stream(filepath).read() == "hello world"
+    assert stream.seekable()
 
     # append to buffer
     stream.seek(0)  # go to start of buffer
@@ -115,6 +118,7 @@ def test_buffer_rollover(tmpdir):
         assert isinstance(stream._file._file, io.BytesIO)
         stream.write("hello world")
         assert isinstance(stream._file._file, io.BufferedRandom)
+        assert stream.seekable()
 
 
 def test_open_http_stream():
@@ -178,6 +182,7 @@ def test_temp_stream():
         content_type="text/plain",
         encoding="utf-8",
     )
+
     stream1.seek(0, whence=2)
     stream1.write(" bar")
     assert stats("tmp://foo/bar.txt") == StreamInfo(

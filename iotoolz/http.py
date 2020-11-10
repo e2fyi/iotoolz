@@ -79,10 +79,14 @@ class HttpStream(AbcStream):
         return StreamInfo(content_type=self.content_type, encoding=self.encoding)
 
     def stats_(self) -> StreamInfo:
-        resp = requests.head(
-            self.uri, **cytoolz.dissoc(self._kwargs, "stream", "use_post")
-        )
-        resp.raise_for_status()
+        kwargs = {
+            "timeout": 1,
+            "allow_redirects": True,
+            **cytoolz.dissoc(self._kwargs, "stream", "use_post"),
+        }
+        resp = requests.head(self.uri, **kwargs)
+        if not resp.ok:
+            return StreamInfo()
         last_modified_str = resp.headers.get("Last-Modified")
         last_modified = _to_datetime(last_modified_str) if last_modified_str else None
         return StreamInfo(
@@ -115,7 +119,10 @@ class HttpStream(AbcStream):
 
     def exists(self) -> bool:
         """Whether the http resource exists."""
-        resp = requests.head(
-            self.uri, **cytoolz.dissoc(self._kwargs, "stream", "use_post")
-        )
+        kwargs = {
+            "timeout": 1,
+            "allow_redirects": True,
+            **cytoolz.dissoc(self._kwargs, "stream", "use_post"),
+        }
+        resp = requests.head(self.uri, **kwargs)
         return resp.ok

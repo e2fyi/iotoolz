@@ -422,11 +422,13 @@ class AbcStream(
 
     def stats(self) -> StreamInfo:
         """Retrieve the StreamInfo of the current stream."""
+        if "r" not in self.mode or self.is_dir():
+            return self._info
         try:
             self.set_info(self.stats_())
             self._has_stats = True
         except Exception as error:  # pylint: disable=broad-except
-            warnings.warn(f"{self.uri}: {error}", RuntimeWarning)
+            warnings.warn(f"Cannot retrieve stats about {self.uri}: {error}", RuntimeWarning)
         return self._info
 
     def is_dir(self) -> bool:
@@ -562,6 +564,13 @@ class AbcStream(
         """
         return self._file.seek(offset, whence)
 
+    def seekable(self) -> bool:
+        """Whether if the stream is seekable."""
+        tmpfile: tempfile.SpooledTemporaryFile = self._file  # type: ignore
+        if hasattr(tmpfile._file, "seekable"):  # type: ignore
+            return tmpfile._file.seekable()  # type: ignore
+        return False
+
     def tell(self) -> int:
         """
         Return the current stream position.
@@ -677,7 +686,11 @@ class AbcStream(
         iter_bytes, info = self.read_to_iterable_(
             self.uri, self._chunk_size, self._clear_buffer(), **self._kwargs
         )
-        self.set_info(info, encoding=self.encoding, content_type=self.content_type)
+        self.set_info(
+            info,
+            encoding=info.encoding or self.encoding,
+            content_type=info.content_type or self.content_type,
+        )
         iter_bytes = iter_bytes or []
         for chunk in iter_bytes:
             self._write(chunk)
@@ -912,13 +925,9 @@ class AbcStream(
         with peek_stream(self._file, peek=0) as stream:
             return str(stream.read().decode(self.encoding))
 
-    def __hash__(self):
-        identifier = self.uri + self.info.etag
-        return hash(identifier.encode())
-
     def __eq__(self, obj):
         if isinstance(obj, AbcStream):
-            return hash(obj) == hash(self)
+            return obj.__repr__() == self.__repr__()
         return False
 
 

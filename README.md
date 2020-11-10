@@ -46,6 +46,8 @@ Available extras:
 - `all`: All the optional dependencies
 - `boto3`: `boto3` for `iotoolz.extensions.S3Stream`
 - `minio`: TODO
+- `pandas`: TODO
+- `rx`: [Reactive Extension for Python](https://github.com/ReactiveX/RxPY) for `iotoolz.rxstream.RxStream`
 
 ## Quickstart
 

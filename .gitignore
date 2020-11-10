@@ -115,3 +115,6 @@ examples/tmp.py
 
 # mkdocs outputs
 site/
+
+# caches
+.cache
