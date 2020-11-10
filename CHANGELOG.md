@@ -1,5 +1,9 @@
 # `iotoolz`
 
+## v0.1.0-rc-12
+
+- Change how the buffer is flushed and closed when the stream is GC or when the application exits.
+
 ## v0.1.0-rc-11
 
 - Fix error when running inside a thread (will not register signal handler if inside a thread). Dev need to ensure stream is flushed and closed properly.
