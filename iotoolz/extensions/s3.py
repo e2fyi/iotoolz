@@ -15,9 +15,8 @@ except ImportError as error:
         "You can install boto3 by running the command: 'pip install iotoolz[boto3]'"
     ) from error
 
-import cytoolz
-
 from iotoolz._abc import AbcStream, StreamInfo
+from iotoolz._toolz import toolz
 from iotoolz.utils import guess_filename
 
 ALLOWED_DOWNLOAD_ARGS = frozenset(boto3.s3.transfer.S3Transfer.ALLOWED_DOWNLOAD_ARGS)
@@ -242,7 +241,7 @@ class S3Stream(AbcStream):
         """Remove the entire directory."""
         try:
             kwargs = {**self._delete_args, **kwargs}
-            batched = cytoolz.partition_all(1000, self.iter_dir())
+            batched = toolz.partition_all(1000, self.iter_dir())
             for batch in batched:
                 self._client.delete_objects(
                     Bucket=self.bucket,

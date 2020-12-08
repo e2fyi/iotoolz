@@ -1,5 +1,9 @@
 # `iotoolz`
 
+## v0.1.0-rc-13
+
+- `cytoolz` is now an optional package.
+
 ## v0.1.0-rc-12
 
 - Change how the buffer is flushed and closed when the stream is GC or when the application exits.

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotoolz"
-version = "0.1.0-rc-12"
+version = "0.1.0-rc-13"
 description = "Consistent io iterface to read and write from/to both local and different remote resources (e.g. http, s3)"
 keywords = ["io", "stream", "requests", "ftp", "s3"]
 authors = ["eterna2 <eterna2@hotmail.com>"]
@@ -31,17 +31,18 @@ pydantic = ">=0.30"
 toml = "^0.10.1"
 requests = "^2.24.0"
 requests-toolbelt = "^0.9.1"
-cytoolz = "^0.11.0"
 chardet = "^3.0.4"
+python-dateutil = "^2.8.1"
+toolz = "^0.11.1"
+cytoolz = {version = "^0.11.0", optional = true}
 boto3 = {version = "^1.16.5", optional = true}
 minio = {version = "^6.0.0", optional = true}
-cachetools = "^4.1.1"
-python-dateutil = "^2.8.1"
 
 [tool.poetry.extras]
 minio = ["minio"]
 boto3 = ["boto3"]
-all = ["minio", "boto3"]
+cytoolz = ["cytoolz"]
+all = ["minio", "boto3", "cytoolz"]
 
 [tool.poetry.dev-dependencies]
 black = {version = "19.10b0", allow-prereleases = true, python = "^3.6", markers = "platform_python_implementation == 'CPython'"}

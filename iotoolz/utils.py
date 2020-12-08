@@ -7,9 +7,10 @@ import io
 import os.path
 from typing import IO, Any, Iterable, Iterator, Optional, Tuple, TypeVar
 
-import cytoolz
 import magic
 from chardet.universaldetector import UniversalDetector
+
+from iotoolz._toolz import toolz
 
 T = TypeVar("T", io.IOBase, IO, Any)
 
@@ -82,11 +83,11 @@ def guess_filename(uri: str) -> str:
     return os.path.basename(uri)
 
 
-guess_content_type_from_file = cytoolz.excepts(
+guess_content_type_from_file = toolz.excepts(
     IOError, functools.partial(magic.from_file, mime=True), lambda _: ""
 )
 
 
-guess_content_type_from_buffer = cytoolz.excepts(
+guess_content_type_from_buffer = toolz.excepts(
     Exception, functools.partial(magic.from_buffer, mime=True), lambda _: ""
 )
