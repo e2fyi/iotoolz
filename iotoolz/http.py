@@ -1,14 +1,14 @@
 """This module implements a HttpStream using the requests lib."""
 from typing import IO, Iterable, Tuple
 
-import cytoolz
 import dateutil.parser
 import requests
 import requests_toolbelt
 
 from iotoolz._abc import AbcStream, StreamInfo
+from iotoolz._toolz import toolz
 
-_to_datetime = cytoolz.excepts(Exception, dateutil.parser.parse)
+_to_datetime = toolz.excepts(Exception, dateutil.parser.parse)
 
 
 class HttpStream(AbcStream):
@@ -32,7 +32,7 @@ class HttpStream(AbcStream):
             Tuple[Iterable[bytes], StreamInfo]: tuple of the bytes iterable and StreamInfo.
         """
         resp = requests.get(
-            uri, stream=True, **cytoolz.dissoc(kwargs, "stream", "use_post")
+            uri, stream=True, **toolz.dissoc(kwargs, "stream", "use_post")
         )
         resp.raise_for_status()
         info = StreamInfo(
@@ -73,14 +73,14 @@ class HttpStream(AbcStream):
             uri,
             data=requests_toolbelt.StreamingIterator(size, fileobj),
             headers=headers,
-            **cytoolz.dissoc(kwargs, "use_post", "data", "headers"),
+            **toolz.dissoc(kwargs, "use_post", "data", "headers"),
         )
         resp.raise_for_status()
         return StreamInfo(content_type=self.content_type, encoding=self.encoding)
 
     def stats_(self) -> StreamInfo:
         resp = requests.head(
-            self.uri, **cytoolz.dissoc(self._kwargs, "stream", "use_post")
+            self.uri, **toolz.dissoc(self._kwargs, "stream", "use_post")
         )
         resp.raise_for_status()
         last_modified_str = resp.headers.get("Last-Modified")
@@ -96,7 +96,7 @@ class HttpStream(AbcStream):
         kwargs = {**self._kwargs, **kwargs}
         try:
             resp = requests.delete(
-                self.uri, **cytoolz.dissoc(kwargs, "stream", "use_post")
+                self.uri, **toolz.dissoc(kwargs, "stream", "use_post")
             )
             resp.raise_for_status()
         except Exception:  # pylint: disable=broad-except
@@ -116,6 +116,6 @@ class HttpStream(AbcStream):
     def exists(self) -> bool:
         """Whether the http resource exists."""
         resp = requests.head(
-            self.uri, **cytoolz.dissoc(self._kwargs, "stream", "use_post")
+            self.uri, **toolz.dissoc(self._kwargs, "stream", "use_post")
         )
         return resp.ok
