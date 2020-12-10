@@ -1,5 +1,9 @@
 # `iotoolz`
 
+## v0.1.0-rc-14
+
+- Loosen the dependencies requirements so that it is more forgiving with older packages (e.g. using an older version of requests).
+
 ## v0.1.0-rc-13
 
 - `cytoolz` is now an optional package.
