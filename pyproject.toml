@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotoolz"
-version = "0.1.0-rc-14"
+version = "0.1.0-rc-15"
 description = "Consistent io iterface to read and write from/to both local and different remote resources (e.g. http, s3)"
 keywords = ["io", "stream", "requests", "ftp", "s3"]
 authors = ["eterna2 <eterna2@hotmail.com>"]
@@ -25,8 +25,11 @@ Changelog = "https://github.com/e2fyi/iotoolz/blob/master/CHANGELOG.md"
 [tool.poetry.dependencies]
 python = ">=3.6,<4"
 typing-extensions = "*"
-python-magic = {version = "0.4.*", markers = "sys_platform == 'linux'"}
-python-magic-bin = {version = "0.4.*", markers = "sys_platform == 'darwin' or sys_platform == 'windows'"}
+python-magic = {version = "0.4.*", platform = "linux"}
+python-magic-bin = [
+    {version = "0.4.*", platform = "win32"},
+    {version = "0.4.*", platform = "darwin"},
+]
 pydantic = ">=0.30"
 toml = ">=0.10.0"
 requests = ">=2.0,<3"
