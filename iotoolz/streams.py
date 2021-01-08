@@ -8,15 +8,20 @@ import urllib.parse
 from typing import Any, Dict, Iterable, Iterator, List, Type, Union
 
 from iotoolz._abc import AbcStream, StreamInfo
-from iotoolz.extensions import S3Stream
+from iotoolz.extensions import MinioStream, S3Stream
 from iotoolz.file import FileStream
 from iotoolz.http import HttpStream
 from iotoolz.temp import TempStream
 
 AbcStreamType = Type[AbcStream]
 
-DEFAULT_STREAMS: List[AbcStreamType] = [FileStream, TempStream, HttpStream, S3Stream]
-
+DEFAULT_STREAMS: List[AbcStreamType] = [
+    FileStream,
+    TempStream,
+    HttpStream,
+    S3Stream,
+    MinioStream,
+]
 
 class Streams:
     """

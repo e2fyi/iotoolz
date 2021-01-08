@@ -18,6 +18,7 @@ nav:
         - iotoolz.TempStream: classes/TempStream.md
       - iotoolz.extensions:
         - iotoolz.extensions.s3: classes/S3Stream.md
+        - iotoolz.extensions.s3: classes/MinioStream.md
       - iotoolz.streams:
         - iotoolz.streams.Streams: classes/Streams.md
       - iotoolz.utils:
