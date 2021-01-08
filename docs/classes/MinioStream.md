@@ -16,4 +16,4 @@ By default, `MinioStream` will try to infer the credentials from the environment
 > Unlike `S3Stream` the uri format should include the minio endpoint:
 > `minio://<endpoint>/<bucket>/<key>`
 
-::: iotoolz.extensions.s3:MinioStream
+::: iotoolz.extensions.minio:MinioStream
