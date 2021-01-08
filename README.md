@@ -27,6 +27,7 @@ Current the following streams are supported:
 - `iotoolz.TempStream`: in-memory stream that will rollover to disk (`tmp://`, `temp://`)
 - `iotoolz.HttpStream`: http or https stream implemented with `requests` (`http://`, `https://`)
 - `iotoolz.extensions.S3Stream`: s3 stream implemented with `boto3` (`s3://`, `s3a://`, `s3n://`)
+- `iotoolz.extensions.MinioStream`: s3 stream implemented with `minio` (`minio://`)
 
 ## Installation
 
@@ -87,6 +88,14 @@ set_schema_kwargs(
         aws_secret_access_key=SECRET_KEY,
         aws_session_token=SESSION_TOKEN,
     )
+)
+
+# use a custom credentials for MinioStream
+set_schema_kwargs(
+    "minio",
+    access_key=ACCESS_KEY,
+    secret_key=SECRET_KEY,
+    secure=True,
 )
 
 # buffer will rollover to disk if the data is more than 100 MB

@@ -37,6 +37,14 @@ set_schema_kwargs(
     )
 )
 
+# use a custom credentials for MinioStream
+set_schema_kwargs(
+    "minio",
+    access_key=ACCESS_KEY,
+    secret_key=SECRET_KEY,
+    secure=True,
+)
+
 # buffer will rollover to disk if the data is more than 100 MB
 # (default is everything is in-memory - may result in memory error)
 set_buffer_rollover_size(10**8)

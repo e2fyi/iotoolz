@@ -562,6 +562,15 @@ class AbcStream(
         """
         return self._file.tell()
 
+    def seekable(self) -> bool:
+        """
+        Whether the stream is seekable.
+
+        Returns:
+            bool: whether stream is seekable.
+        """
+        return not self.closed
+
     def flush(self):
         """
         Flush the write buffers of the stream if applicable.

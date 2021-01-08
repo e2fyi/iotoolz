@@ -1,5 +1,10 @@
 # `iotoolz`
 
+## v0.1.0-rc-16
+
+- Added `MinioStream` (`minio://`)
+- Added `seekable` method for AbcStream
+
 ## v0.1.0-rc-15
 
 - Fix  system markers for windows so that python-magic is installed correctly on windows machine.
