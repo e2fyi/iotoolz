@@ -29,7 +29,7 @@ MINIO_REGION = (
     or os.environ.get("AWS_DEFAULT_REGION")
 )
 MINIO_SECURE_STR = os.environ.get("MINIO_SECURE", "").lower()
-MINIO_SECURE = False if MINIO_SECURE_STR in {"-1", "0", "false", "off"} else True
+MINIO_SECURE = MINIO_SECURE_STR not in {"-1", "0", "false", "off"}
 
 
 class MinioStream(AbcStream):

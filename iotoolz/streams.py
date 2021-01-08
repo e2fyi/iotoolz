@@ -23,6 +23,7 @@ DEFAULT_STREAMS: List[AbcStreamType] = [
     MinioStream,
 ]
 
+
 class Streams:
     """
     Helper class to open streams with the corresponding AbcStream implementation
