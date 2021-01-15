@@ -93,6 +93,7 @@ class MinioStream(AbcStream):
         )
 
         self._scheme, self._endpoint, path, query, _ = urllib.parse.urlsplit(uri)
+        path = path[1:] if path.startswith("/") else path
         self.bucket, *key_chunks = path.split("/")
         self.key = "/".join(key_chunks)
 
@@ -104,7 +105,7 @@ class MinioStream(AbcStream):
             access_key=access_key or MINIO_ACCESS_KEY,
             secret_key=secret_key or MINIO_SECRET_KEY,
             region=region or MINIO_REGION,
-            secure=secure or MINIO_SECURE,
+            secure=secure if secure is not None else MINIO_SECURE,
         )
         self._query_str = {
             key: value[-1]
@@ -140,7 +141,6 @@ class MinioStream(AbcStream):
                 encoding=self.encoding,
                 etag=etag,
                 last_modified=last_modified,
-                extras=resp,
             ),
         )
 
@@ -159,7 +159,7 @@ class MinioStream(AbcStream):
             content_type=resp.content_type,
             etag=resp.etag,
             last_modified=resp.last_modified,
-            extras=resp,
+            extras={"stat": resp},
         )
 
     def exists(self) -> bool:
@@ -220,7 +220,7 @@ class MinioStream(AbcStream):
                 name=obj.object_name,
                 last_modified=obj.last_modified,
                 etag=obj.etag,
-                extras=obj,
+                extras={"list": obj},
             )
             for obj in objects
         )

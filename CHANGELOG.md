@@ -1,5 +1,9 @@
 # `iotoolz`
 
+## v0.1.0-rc-17
+
+- Fix bug in resolving bucket for `minio://` schema
+
 ## v0.1.0-rc-16
 
 - Added `MinioStream` (`minio://`)
