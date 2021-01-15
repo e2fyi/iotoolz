@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotoolz"
-version = "0.1.0-rc-16"
+version = "0.1.0-rc-17"
 description = "Consistent io iterface to read and write from/to both local and different remote resources (e.g. http, s3, minio)"
 keywords = ["io", "stream", "requests", "ftp", "s3", "minio"]
 authors = ["eterna2 <eterna2@hotmail.com>"]
