@@ -231,7 +231,9 @@ class S3Stream(AbcStream):
         try:
             kwargs = {**self._delete_args, **kwargs}
             self._client.delete_object(
-                Bucket=self.bucket, Key=self.key, **kwargs,
+                Bucket=self.bucket,
+                Key=self.key,
+                **kwargs,
             )
         except botocore.errorfactory.ClientError:
             if not missing_ok:
@@ -340,7 +342,10 @@ class S3Stream(AbcStream):
         return cls
 
     def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+        self,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """This method does nothing as you do not need to create a 'folder' for an object store."""
         ...

@@ -110,7 +110,10 @@ class TempStream(AbcStream):
         self._clear_buffer()
 
     def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+        self,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """This method does nothing as you do not need to create a folder for an in-memory buffer."""
         ...

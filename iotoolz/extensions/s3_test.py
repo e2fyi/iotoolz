@@ -35,7 +35,7 @@ def test_s3stream(s3):
         mode="w",
         content_type="text/plain",
         encoding="utf-8",
-        **extra_args
+        **extra_args,
     ) as stream:
         stream.write("hello world")
 

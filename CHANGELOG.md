@@ -1,5 +1,11 @@
 # `iotoolz`
 
+## v0.1.0
+
+- Force `requests` to be `>=2.26.0,<3.0` because of `chardet` LGPL licensing (See https://github.com/psf/requests/pull/5797)
+- Make `chardet` optional because of LGPL licensing. Defaults to `charset_normalizer` if `chardet` is not installed.
+- Added `readable` method to AbcStream
+
 ## v0.1.0-rc-17
 
 - Fix bug in resolving bucket for `minio://` schema

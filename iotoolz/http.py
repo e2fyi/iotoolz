@@ -104,7 +104,10 @@ class HttpStream(AbcStream):
                 raise
 
     def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+        self,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """This method does nothing as the actual HTTP call will handle any folder creation as part of the request."""
         ...
