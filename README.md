@@ -6,6 +6,7 @@
 [![Documentation Status](https://readthedocs.org/projects/iotoolz/badge/?version=latest)](https://iotoolz.readthedocs.io/en/latest/?badge=latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Downloads](https://pepy.tech/badge/iotoolz/month)](https://pepy.tech/project/iotoolz)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fe2fyi%2Fiotoolz.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fe2fyi%2Fiotoolz?ref=badge_shield)
 
 `iotoolz` is an improvement over `e2fyi-utils` and is inspired partly by `toolz`.
 `iotoolz` is a lib to help provide a consistent dev-x for interacting with any IO resources.
@@ -302,3 +303,7 @@ with open_stream("tmp://foo_src", mode="w") as source:
 ```
 
 > TODO support transform streams so that pipe can be more useful
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fe2fyi%2Fiotoolz.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fe2fyi%2Fiotoolz?ref=badge_large)
