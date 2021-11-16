@@ -12,6 +12,7 @@ check:
 	poetry run black --check iotoolz
 
 check-codes:
+	set -e
 	poetry run flake8
 	# WIP
 	poetry run pylint iotoolz --disable=missing-function-docstring,missing-class-docstring,missing-function-docstring,missing-module-docstring,duplicate-code
@@ -20,6 +21,7 @@ check-codes:
 	# poetry run safety check
 
 test: check check-codes
+	set -e
 	poetry run pytest --cov
 
 coveralls: test

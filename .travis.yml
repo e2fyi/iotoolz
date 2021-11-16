@@ -1,5 +1,6 @@
 sudo: true
 language: python
+dist: bionic
 matrix:
   include:
     - python: 3.6
