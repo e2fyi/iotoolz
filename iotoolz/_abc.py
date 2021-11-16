@@ -259,7 +259,10 @@ class AbcStream(
 
     @abc.abstractmethod
     def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+        self,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """
         This abstract method should mimics pathlib.mkdir method for different streams.
@@ -448,6 +451,13 @@ class AbcStream(
         """
         with peek_stream(self) as stream:
             return stream.read(size or self._chunk_size)  # type: ignore
+
+    def readable(self) -> bool:
+        return (
+            self._file.readable()
+            if hasattr(self._file, "readable")
+            else hasattr(self._file, "read")
+        )
 
     @need_sync
     def read(self, size: Optional[int] = -1) -> Union[str, bytes, bytearray]:
@@ -872,11 +882,13 @@ class AbcStream(
             self._buffer.flush()
             self._buffer.close()
 
-        self._buffer = tempfile.SpooledTemporaryFile(
-            max_size=self._inmem_size or self.INMEM_SIZE,
-            mode="w+b",  # always binary mode
-            buffering=self.buffering,
-            newline=self.newline,
+        self._buffer = (
+            tempfile.SpooledTemporaryFile(  # pylint: disable=consider-using-with
+                max_size=self._inmem_size or self.INMEM_SIZE,
+                mode="w+b",  # always binary mode
+                buffering=self.buffering,
+                newline=self.newline,
+            )
         )
         return self._buffer
 

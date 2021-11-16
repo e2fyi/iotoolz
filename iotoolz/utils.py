@@ -5,11 +5,11 @@ import contextlib
 import functools
 import io
 import os.path
-from typing import IO, Any, Iterable, Iterator, Optional, Tuple, TypeVar
+from typing import IO, Any, Iterator, Optional, TypeVar
 
 import magic
-from chardet.universaldetector import UniversalDetector
 
+from iotoolz import _chardet
 from iotoolz._toolz import toolz
 
 T = TypeVar("T", io.IOBase, IO, Any)
@@ -48,35 +48,6 @@ def peek_stream(
             stream.seek(pos)  # type: ignore
 
 
-def guess_encoding(
-    data: Iterable[bytes], default_encoding: str = "utf-8"
-) -> Tuple[str, float]:
-    """
-    Guess the encoding to decode bytes into corresponding string object.
-
-    Uses chardet to attempt to progressively guess the encoding which can be used to
-    decode the bytes into corresponding strings. Returns a tuple[encoding, confidence].
-
-    Args:
-        data (Iterable[bytes]): [description]
-        default_encoding (str, optional): [description]. Defaults to "utf-8".
-
-    Returns:
-        Tuple[str, float]: [description]
-    """
-
-    detector = UniversalDetector()
-    for line in data:
-        detector.feed(line)
-        if detector.done:
-            break
-    detector.close()
-    return (
-        detector.result.get("encoding", default_encoding),  # type: ignore
-        detector.result.get("confidence", 0.0),
-    )
-
-
 def guess_filename(uri: str) -> str:
     if uri.endswith("/"):
         return ""
@@ -91,3 +62,5 @@ guess_content_type_from_file = toolz.excepts(
 guess_content_type_from_buffer = toolz.excepts(
     Exception, functools.partial(magic.from_buffer, mime=True), lambda _: ""
 )
+
+guess_encoding = _chardet.guess_encoding

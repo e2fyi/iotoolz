@@ -53,7 +53,10 @@ class FileStream(AbcStream):
 
         def iter_bytes() -> Iterable[bytes]:
             with open(
-                self.uri, mode="rb", buffering=self.buffering, newline=self.newline,
+                self.uri,
+                mode="rb",
+                buffering=self.buffering,
+                newline=self.newline,
             ) as stream:
                 for chunk in stream:
                     yield chunk
@@ -73,7 +76,7 @@ class FileStream(AbcStream):
         mode = self.mode.replace("r", "")
         if "b" not in mode:
             mode += "b"
-        with open(
+        with open(  # pylint: disable=unspecified-encoding
             self.uri,
             mode=mode,
             buffering=self.buffering,
@@ -117,7 +120,10 @@ class FileStream(AbcStream):
         return self
 
     def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+        self,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """
         Create a new directory at this given path. If mode is given, it is combined with

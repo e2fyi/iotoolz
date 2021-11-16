@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "iotoolz"
-version = "0.1.0-rc-17"
+version = "0.1.0"
 description = "Consistent io iterface to read and write from/to both local and different remote resources (e.g. http, s3, minio)"
 keywords = ["io", "stream", "requests", "ftp", "s3", "minio"]
 authors = ["eterna2 <eterna2@hotmail.com>"]
@@ -23,7 +23,7 @@ classifiers = [
 Changelog = "https://github.com/e2fyi/iotoolz/blob/master/CHANGELOG.md"
 
 [tool.poetry.dependencies]
-python = ">=3.6,<4"
+python = ">=3.6.2,<3.10"
 typing-extensions = "*"
 python-magic = {version = "0.4.*", platform = "linux"}
 python-magic-bin = [
@@ -32,23 +32,25 @@ python-magic-bin = [
 ]
 pydantic = ">=0.30"
 toml = ">=0.10.0"
-requests = ">=2.0,<3"
+requests = ">=2.26.0,<3.0"
 requests-toolbelt = "^0.9.0"
-chardet = "^3.0.0"
 python-dateutil = ">=2.8.0"
 toolz = ">=0.10.0"
 cytoolz = {version = ">=0.10.0", optional = true}
 boto3 = {version = "^1.0.0", optional = true}
 minio = {version = "^7.0.0", optional = true}
+charset-normalizer = {extras = ["unicode_backport"], version = "^2.0.7"}
+chardet = {version = "^4.0.0", optional = true}
 
 [tool.poetry.extras]
 minio = ["minio"]
 boto3 = ["boto3"]
 cytoolz = ["cytoolz"]
+chardet = ["chardet"]
 all = ["minio", "boto3", "cytoolz"]
 
 [tool.poetry.dev-dependencies]
-black = {version = "19.10b0", allow-prereleases = true, python = "^3.6", markers = "platform_python_implementation == 'CPython'"}
+black = {version = "^21.10b0", allow-prereleases = true}
 mypy = "^0.782"
 flake8 = "^3.8.3"
 pylint = "^2.6.0"
@@ -69,14 +71,11 @@ mkdocs-git-revision-date-localized-plugin = "^0.7.2"
 markdown_include = "^0.6.0"
 moto = {extras = ["s3"], version = "^1.3.16"}
 sshpubkeys = "^3.1.0"
+isort = "^5.10.1"
+livereload = "^2.6.3"  # see https://github.com/mkdocstrings/mkdocstrings/issues/295
 
 [tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
-line_length = 88
+profile = "black"
 known_first_party = ["iotoolz"]
 known_third_party = [
     "magic",
@@ -93,6 +92,7 @@ known_third_party = [
 # lines_between_types = 1
 
 [tool.black]
+target-version = ['py36', 'py37', 'py38', 'py39']
 line_length = 88
 
 [build-system]

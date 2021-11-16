@@ -202,7 +202,10 @@ class MinioStream(AbcStream):
         return self
 
     def mkdir(
-        self, mode: int = 0o777, parents: bool = False, exist_ok: bool = False,
+        self,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
     ):
         """This method does nothing as you do not need to create a 'folder' for an object store."""
         ...
@@ -211,7 +214,9 @@ class MinioStream(AbcStream):
         """Yields tuple of uri and the metadata in a directory."""
 
         objects = self._client.list_objects(
-            self.bucket, recursive=True, start_after=self.key,
+            self.bucket,
+            recursive=True,
+            start_after=self.key,
         )
 
         return (

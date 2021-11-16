@@ -56,7 +56,9 @@ def test_streams(tmpdir):
     with open_stream(dirpath / "example.py", "w") as stream:
         stream.write("hello")
     assert exists(dirpath / "example.py")
-    assert list(iter_dir(dirpath)) == [Stream(filepath), Stream(dirpath / "example.py")]
+    file_list = {spath.uri for spath in iter_dir(dirpath)}
+    assert filepath in file_list
+    assert dirpath / "example.py" in file_list
 
     # glob files
     assert list(glob(dirpath / "*.py")) == [Stream(dirpath / "example.py")]

@@ -17,7 +17,7 @@ API documentation can be found at [https://iotoolz.readthedocs.io/en/latest/](ht
 
 Change logs are available in [CHANGELOG.md](https://github.com/e2fyi/iotoolz/blob/master/CHANGELOG.md).
 
-> - Python 3.6 and above
+> - Python 3.6.1 and above
 > - Licensed under [Apache-2.0](./LICENSE).
 
 ## Supported streams
@@ -47,7 +47,8 @@ Available extras:
 
 - `all`: All the optional dependencies
 - `boto3`: `boto3` for `iotoolz.extensions.S3Stream`
-- `minio`: TODO
+- `minio`: `minio` for `iotoolz.extensions.MinioStream`
+- `chardet`: install LGPL `chardet` for guessing encoding. Otherwise `charset_normalizer` will be used.
 
 ## Quickstart
 
